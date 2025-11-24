@@ -4,23 +4,58 @@ import { ThreatBadge } from "./ThreatBadge";
 import { Copy, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+interface VendorData {
+  name: string;
+  data: Record<string, any>;
+}
+
 interface ThreatSummaryProps {
   query: string;
   overallScore: number;
   threatLevel: "safe" | "suspicious" | "malicious";
   totalVendors: number;
   detections: number;
+  vendorData?: VendorData[];
 }
 
-export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, detections }: ThreatSummaryProps) => {
+export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, detections, vendorData = [] }: ThreatSummaryProps) => {
   const { toast } = useToast();
 
+  const formatVendorData = (vendor: VendorData): string => {
+    let text = `\n${vendor.name}\n${'='.repeat(vendor.name.length)}\n`;
+    Object.entries(vendor.data).forEach(([key, value]) => {
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        text += `${key}:\n`;
+        Object.entries(value).forEach(([subKey, subValue]) => {
+          text += `  ${subKey}: ${subValue}\n`;
+        });
+      } else if (Array.isArray(value)) {
+        text += `${key}: ${value.join(', ')}\n`;
+      } else {
+        text += `${key}: ${value}\n`;
+      }
+    });
+    return text;
+  };
+
   const handleCopy = () => {
-    const summary = `Threat Analysis for ${query}\nOverall Score: ${overallScore}/100\nThreat Level: ${threatLevel}\nDetections: ${detections}/${totalVendors} vendors`;
-    navigator.clipboard.writeText(summary);
+    let fullReport = `THREAT INTELLIGENCE REPORT\n${'='.repeat(50)}\n\n`;
+    fullReport += `Query: ${query}\n`;
+    fullReport += `Overall Score: ${overallScore}/100\n`;
+    fullReport += `Threat Level: ${threatLevel.toUpperCase()}\n`;
+    fullReport += `Detections: ${detections}/${totalVendors} vendors\n`;
+    fullReport += `Generated: ${new Date().toISOString()}\n`;
+    fullReport += `\n${'='.repeat(50)}\n`;
+    fullReport += `VENDOR DETAILS\n${'='.repeat(50)}`;
+    
+    vendorData.forEach(vendor => {
+      fullReport += formatVendorData(vendor);
+    });
+
+    navigator.clipboard.writeText(fullReport);
     toast({
       title: "Copied to clipboard",
-      description: "Summary has been copied successfully",
+      description: "Full report has been copied successfully",
     });
   };
 

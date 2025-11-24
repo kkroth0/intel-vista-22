@@ -9,6 +9,125 @@ const Index = () => {
   // Mock data for the dashboard
   const query = "192.168.1.100";
 
+  const vendorData = [
+    {
+      name: "VirusTotal",
+      data: {
+        "Detection Rate": "15/65",
+        "Status": "Suspicious",
+        "Top Detections": ["Kaspersky", "BitDefender", "ESET-NOD32"]
+      }
+    },
+    {
+      name: "AbuseIPDB",
+      data: {
+        "Abuse Confidence Score": "78%",
+        "Reports": "142 reports",
+        "Last Report": "2025-11-20 14:32 UTC"
+      }
+    },
+    {
+      name: "Fortinet FortiGuard",
+      data: {
+        "Category": "Proxy Avoidance",
+        "Risk Level": "High Risk",
+        "Additional Info": "Known proxy server, potential malicious activity"
+      }
+    },
+    {
+      name: "Kaspersky Threat Intelligence",
+      data: {
+        "Reputation": "Clean",
+        "Context": "No known malicious activity detected in the last 90 days",
+        "Categories": ["Infrastructure", "Unknown"]
+      }
+    },
+    {
+      name: "Shodan",
+      data: {
+        "Open Ports": ["22/SSH", "80/HTTP", "443/HTTPS", "3306/MySQL"],
+        "Detected Services": "nginx/1.18.0, OpenSSH 8.2, MySQL 5.7",
+        "Vulnerabilities": "3 CVEs"
+      }
+    },
+    {
+      name: "URLhaus",
+      data: {
+        "Detection Status": "Malicious URL Detected",
+        "Confidence": "95%",
+        "Threat Type": "Malware Distribution"
+      }
+    },
+    {
+      name: "ThreatFox",
+      data: {
+        "Botnet Detection": "Emotet C2",
+        "Confidence Level": "88%",
+        "Tags": ["Emotet", "C2", "Banking Trojan"]
+      }
+    },
+    {
+      name: "Hybrid Analysis",
+      data: {
+        "Threat Score": "65/100",
+        "Sample Hashes": "a3f2c9d8e1b4...",
+        "Status": "Potentially Malicious"
+      }
+    },
+    {
+      name: "AlienVault OTX",
+      data: {
+        "Pulse Count": "24 pulses",
+        "Status": "Suspicious Activity",
+        "Summary": "Associated with spam campaigns and phishing attempts"
+      }
+    },
+    {
+      name: "Web Categorization",
+      data: {
+        "BlueCoat": "Suspicious",
+        "Sophos": "Uncategorized",
+        "Fortinet": "High Risk"
+      }
+    },
+    {
+      name: "Cisco Talos",
+      data: {
+        "Reputation": "Poor",
+        "Email Volume": "High",
+        "Web Reputation": "Untrusted",
+        "Category": "Spam Source"
+      }
+    },
+    {
+      name: "IBM X-Force",
+      data: {
+        "Risk Score": "7.5/10",
+        "Category": "Malware",
+        "Reports": "89 reports",
+        "Geographic Location": "Russia"
+      }
+    },
+    {
+      name: "GreyNoise",
+      data: {
+        "Classification": "Malicious",
+        "Scanner Type": "Exploitation",
+        "First Seen": "2025-10-15",
+        "Tags": ["VPN", "Tor Exit Node"]
+      }
+    },
+    {
+      name: "IPVoid",
+      data: {
+        "Blacklist Status": "5/92 blacklists",
+        "Detection Rate": "5%",
+        "Location": "Moscow, Russia",
+        "ISP": "DigitalOcean"
+      }
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -25,8 +144,9 @@ const Index = () => {
           query={query}
           overallScore={73}
           threatLevel="suspicious"
-          totalVendors={9}
-          detections={4}
+          totalVendors={14}
+          detections={8}
+          vendorData={vendorData}
         />
 
         {/* Vendor Cards Grid */}
@@ -287,6 +407,107 @@ const Index = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Fortinet</p>
                 <Badge variant="destructive">High Risk</Badge>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* Cisco Talos */}
+          <VendorCard
+            title="Cisco Talos"
+            description="Threat intelligence & research"
+            icon={<Shield className="h-5 w-5 text-primary" />}
+            externalLink="https://talosintelligence.com"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Reputation</p>
+                <ThreatBadge level="malicious" label="Poor" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Email Volume</p>
+                <Badge variant="destructive">High</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Web Reputation</p>
+                <p className="text-sm">Untrusted - Spam Source</p>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* IBM X-Force */}
+          <VendorCard
+            title="IBM X-Force"
+            description="Security intelligence platform"
+            icon={<Database className="h-5 w-5 text-primary" />}
+            externalLink="https://exchange.xforce.ibmcloud.com"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Risk Score</p>
+                <div className="flex items-center gap-3">
+                  <Progress value={75} className="flex-1" />
+                  <span className="font-semibold text-threat-malicious">7.5/10</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Category</p>
+                <Badge variant="destructive">Malware</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Location</p>
+                <p className="text-sm">Russia - 89 reports</p>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* GreyNoise */}
+          <VendorCard
+            title="GreyNoise"
+            description="Internet scanner detection"
+            icon={<Radar className="h-5 w-5 text-primary" />}
+            externalLink="https://greynoise.io"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Classification</p>
+                <ThreatBadge level="malicious" label="Malicious" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Scanner Type</p>
+                <Badge variant="destructive">Exploitation</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Tags</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">VPN</Badge>
+                  <Badge variant="outline">Tor Exit Node</Badge>
+                </div>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* IPVoid */}
+          <VendorCard
+            title="IPVoid"
+            description="IP blacklist checker"
+            icon={<AlertTriangle className="h-5 w-5 text-primary" />}
+            externalLink="https://ipvoid.com"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Blacklist Status</p>
+                <div className="flex items-center gap-3">
+                  <Progress value={5} className="flex-1" />
+                  <span className="font-semibold">5/92</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Location</p>
+                <p className="text-sm">Moscow, Russia</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">ISP</p>
+                <Badge variant="secondary">DigitalOcean</Badge>
               </div>
             </div>
           </VendorCard>
