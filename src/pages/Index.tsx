@@ -125,6 +125,87 @@ const Index = () => {
         "Location": "Moscow, Russia",
         "ISP": "DigitalOcean"
       }
+    },
+    {
+      name: "Spamhaus",
+      data: {
+        "Listing Status": "Listed",
+        "Database": "XBL, PBL",
+        "Reason": "Known spam source",
+        "First Listed": "2025-11-10"
+      }
+    },
+    {
+      name: "MalwareBazaar",
+      data: {
+        "Detection": "Malware sample found",
+        "Family": "AgentTesla",
+        "File Type": "PE32",
+        "Signature": "85% confidence"
+      }
+    },
+    {
+      name: "Google Safe Browsing",
+      data: {
+        "Status": "Unsafe",
+        "Threat Type": "Malware & Social Engineering",
+        "Last Updated": "2025-11-22",
+        "Platform": "All platforms affected"
+      }
+    },
+    {
+      name: "PhishTank",
+      data: {
+        "Verification": "Verified Phishing",
+        "Votes": "27 confirmations",
+        "Submitted": "2025-11-19",
+        "Target": "Banking sector"
+      }
+    },
+    {
+      name: "CIRCL PassiveDNS",
+      data: {
+        "Records Found": "142 DNS records",
+        "First Seen": "2024-08-10",
+        "Last Seen": "2025-11-23",
+        "Associated Domains": ["malicious-site.com", "phish-example.net"]
+      }
+    },
+    {
+      name: "Pulsedive",
+      data: {
+        "Risk Score": "High",
+        "Indicators": "18 IOCs",
+        "Threat Types": ["Malware", "C2"],
+        "Last Activity": "Active today"
+      }
+    },
+    {
+      name: "ThreatCrowd",
+      data: {
+        "Related Domains": "8 domains",
+        "Related IPs": "15 IPs",
+        "Votes": "Malicious: 12 | Safe: 2",
+        "Hashes": "5 malware samples"
+      }
+    },
+    {
+      name: "Censys",
+      data: {
+        "Services": "6 services detected",
+        "Certificates": "Self-signed certificate",
+        "Tags": ["Suspicious", "Misconfigured"],
+        "Last Scan": "2025-11-23"
+      }
+    },
+    {
+      name: "BinaryEdge",
+      data: {
+        "Scan Results": "23 events",
+        "Risk Level": "High",
+        "Torrent Activity": "Detected",
+        "Malware C&C": "Potential C2 server"
+      }
     }
   ];
 
@@ -144,8 +225,8 @@ const Index = () => {
           query={query}
           overallScore={73}
           threatLevel="suspicious"
-          totalVendors={14}
-          detections={8}
+          totalVendors={23}
+          detections={17}
           vendorData={vendorData}
         />
 
@@ -508,6 +589,231 @@ const Index = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-2">ISP</p>
                 <Badge variant="secondary">DigitalOcean</Badge>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* Spamhaus */}
+          <VendorCard
+            title="Spamhaus"
+            description="Real-time spam blocklist"
+            icon={<AlertTriangle className="h-5 w-5 text-primary" />}
+            externalLink="https://spamhaus.org"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Listing Status</p>
+                <ThreatBadge level="malicious" label="Listed" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Database</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="destructive">XBL</Badge>
+                  <Badge variant="destructive">PBL</Badge>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Reason</p>
+                <p className="text-sm">Known spam source - First listed 2025-11-10</p>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* MalwareBazaar */}
+          <VendorCard
+            title="MalwareBazaar"
+            description="Malware sample database"
+            icon={<Bug className="h-5 w-5 text-primary" />}
+            externalLink="https://bazaar.abuse.ch"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Detection</p>
+                <ThreatBadge level="malicious" label="Malware Sample Found" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Family</p>
+                <Badge variant="destructive">AgentTesla</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Confidence</p>
+                <div className="flex items-center gap-3">
+                  <Progress value={85} className="flex-1" />
+                  <span className="font-semibold">85%</span>
+                </div>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* Google Safe Browsing */}
+          <VendorCard
+            title="Google Safe Browsing"
+            description="Web safety verification"
+            icon={<Shield className="h-5 w-5 text-primary" />}
+            externalLink="https://safebrowsing.google.com"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Status</p>
+                <ThreatBadge level="malicious" label="Unsafe" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Threat Type</p>
+                <Badge variant="destructive">Malware & Social Engineering</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Platform Impact</p>
+                <p className="text-sm">All platforms affected</p>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* PhishTank */}
+          <VendorCard
+            title="PhishTank"
+            description="Phishing site verification"
+            icon={<LinkIcon className="h-5 w-5 text-primary" />}
+            externalLink="https://phishtank.com"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Verification</p>
+                <ThreatBadge level="malicious" label="Verified Phishing" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Community Votes</p>
+                <p className="text-2xl font-bold text-threat-malicious">27</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Target Sector</p>
+                <Badge variant="destructive">Banking</Badge>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* CIRCL PassiveDNS */}
+          <VendorCard
+            title="CIRCL PassiveDNS"
+            description="DNS records tracking"
+            icon={<Database className="h-5 w-5 text-primary" />}
+            externalLink="https://www.circl.lu"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Records Found</p>
+                <p className="text-2xl font-bold">142</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Active Period</p>
+                <p className="text-sm">2024-08-10 to 2025-11-23</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Associated</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">malicious-site.com</Badge>
+                  <Badge variant="outline">phish-example.net</Badge>
+                </div>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* Pulsedive */}
+          <VendorCard
+            title="Pulsedive"
+            description="Threat intelligence platform"
+            icon={<Radar className="h-5 w-5 text-primary" />}
+            externalLink="https://pulsedive.com"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Risk Score</p>
+                <ThreatBadge level="malicious" label="High Risk" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Indicators</p>
+                <p className="text-2xl font-bold">18 IOCs</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Threat Types</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="destructive">Malware</Badge>
+                  <Badge variant="destructive">C2</Badge>
+                </div>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* ThreatCrowd */}
+          <VendorCard
+            title="ThreatCrowd"
+            description="Threat correlation engine"
+            icon={<Eye className="h-5 w-5 text-primary" />}
+            externalLink="https://threatcrowd.org"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Related Infrastructure</p>
+                <p className="text-sm">8 domains, 15 IPs</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Community Votes</p>
+                <p className="text-sm">Malicious: <span className="text-threat-malicious font-semibold">12</span> | Safe: <span className="text-threat-safe font-semibold">2</span></p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Malware Samples</p>
+                <p className="text-2xl font-bold">5 hashes</p>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* Censys */}
+          <VendorCard
+            title="Censys"
+            description="Internet asset search"
+            icon={<Globe className="h-5 w-5 text-primary" />}
+            externalLink="https://censys.io"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Services Detected</p>
+                <p className="text-2xl font-bold">6</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Certificate</p>
+                <Badge variant="secondary">Self-signed</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Tags</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">Suspicious</Badge>
+                  <Badge variant="outline">Misconfigured</Badge>
+                </div>
+              </div>
+            </div>
+          </VendorCard>
+
+          {/* BinaryEdge */}
+          <VendorCard
+            title="BinaryEdge"
+            description="Cybersecurity data platform"
+            icon={<FileSearch className="h-5 w-5 text-primary" />}
+            externalLink="https://binaryedge.io"
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Scan Results</p>
+                <p className="text-2xl font-bold">23 events</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Risk Level</p>
+                <ThreatBadge level="malicious" label="High Risk" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Activity</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="destructive">Torrent</Badge>
+                  <Badge variant="destructive">Potential C2</Badge>
+                </div>
               </div>
             </div>
           </VendorCard>
