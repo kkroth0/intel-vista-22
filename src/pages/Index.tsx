@@ -1,824 +1,375 @@
-import { Shield, AlertTriangle, Bug, FileSearch, Globe, Link as LinkIcon, Radar, Database, Eye } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { Shield, AlertTriangle, Bug, FileSearch, Globe, Link as LinkIcon, Radar, Database, Eye, Search, Copy } from "lucide-react";
 import { ThreatSummary } from "@/components/ThreatSummary";
 import { VendorCard } from "@/components/VendorCard";
-import { ThreatBadge } from "@/components/ThreatBadge";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { VendorContent } from "@/components/VendorContent";
+import { VendorFilter } from "@/components/VendorFilter";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Footer } from "@/components/Footer";
+import { HistorySidebar } from "@/components/HistorySidebar";
+import { ExportButton } from "@/components/ExportButton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { fetchThreatData } from "@/services/threatApi";
+import { useToast } from "@/hooks/use-toast";
+
+interface SearchFormProps {
+  query: string;
+  setQuery: (query: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  isLoading: boolean;
+  className?: string;
+}
+
+const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "" }: SearchFormProps) => (
+  <form onSubmit={onSubmit} className={`flex gap-2 w-full ${className}`}>
+    <Input
+      placeholder="Enter IP, domain, or hash (e.g., 1.1.1.1, example.com)"
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      className="flex-1"
+    />
+    <Button type="submit" disabled={isLoading}>
+      {isLoading ? "Analyzing..." : <><Search className="mr-2 h-4 w-4" /> Analyze</>}
+    </Button>
+  </form>
+);
+
+const ALL_VENDORS = [
+  "IP Geolocation", "WHOIS", "VirusTotal", "AbuseIPDB", "AlienVault OTX",
+  "Shodan", "URLhaus", "ThreatFox", "MalwareBazaar", "Google Safe Browsing",
+  "PhishTank", "Pulsedive", "ThreatCrowd", "Censys", "BinaryEdge",
+  "GreyNoise", "IPQualityScore", "Hybrid Analysis", "CIRCL hashlookup",
+  "Criminal IP", "MetaDefender", "PhishStats", "Ransomware.live"
+];
+
+interface HistoryItem {
+  query: string;
+  timestamp: number;
+  threatLevel: "safe" | "suspicious" | "malicious" | "unknown";
+}
 
 const Index = () => {
-  // Mock data for the dashboard
-  const query = "192.168.1.100";
+  const [query, setQuery] = useState("");
+  const [selectedVendors, setSelectedVendors] = useState<string[]>(ALL_VENDORS);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const { toast } = useToast();
 
-  const vendorData = [
-    {
-      name: "VirusTotal",
-      data: {
-        "Detection Rate": "15/65",
-        "Status": "Suspicious",
-        "Top Detections": ["Kaspersky", "BitDefender", "ESET-NOD32"]
-      }
-    },
-    {
-      name: "AbuseIPDB",
-      data: {
-        "Abuse Confidence Score": "78%",
-        "Reports": "142 reports",
-        "Last Report": "2025-11-20 14:32 UTC"
-      }
-    },
-    {
-      name: "Fortinet FortiGuard",
-      data: {
-        "Category": "Proxy Avoidance",
-        "Risk Level": "High Risk",
-        "Additional Info": "Known proxy server, potential malicious activity"
-      }
-    },
-    {
-      name: "Kaspersky Threat Intelligence",
-      data: {
-        "Reputation": "Clean",
-        "Context": "No known malicious activity detected in the last 90 days",
-        "Categories": ["Infrastructure", "Unknown"]
-      }
-    },
-    {
-      name: "Shodan",
-      data: {
-        "Open Ports": ["22/SSH", "80/HTTP", "443/HTTPS", "3306/MySQL"],
-        "Detected Services": "nginx/1.18.0, OpenSSH 8.2, MySQL 5.7",
-        "Vulnerabilities": "3 CVEs"
-      }
-    },
-    {
-      name: "URLhaus",
-      data: {
-        "Detection Status": "Malicious URL Detected",
-        "Confidence": "95%",
-        "Threat Type": "Malware Distribution"
-      }
-    },
-    {
-      name: "ThreatFox",
-      data: {
-        "Botnet Detection": "Emotet C2",
-        "Confidence Level": "88%",
-        "Tags": ["Emotet", "C2", "Banking Trojan"]
-      }
-    },
-    {
-      name: "Hybrid Analysis",
-      data: {
-        "Threat Score": "65/100",
-        "Sample Hashes": "a3f2c9d8e1b4...",
-        "Status": "Potentially Malicious"
-      }
-    },
-    {
-      name: "AlienVault OTX",
-      data: {
-        "Pulse Count": "24 pulses",
-        "Status": "Suspicious Activity",
-        "Summary": "Associated with spam campaigns and phishing attempts"
-      }
-    },
-    {
-      name: "Web Categorization",
-      data: {
-        "BlueCoat": "Suspicious",
-        "Sophos": "Uncategorized",
-        "Fortinet": "High Risk"
-      }
-    },
-    {
-      name: "Cisco Talos",
-      data: {
-        "Reputation": "Poor",
-        "Email Volume": "High",
-        "Web Reputation": "Untrusted",
-        "Category": "Spam Source"
-      }
-    },
-    {
-      name: "IBM X-Force",
-      data: {
-        "Risk Score": "7.5/10",
-        "Category": "Malware",
-        "Reports": "89 reports",
-        "Geographic Location": "Russia"
-      }
-    },
-    {
-      name: "GreyNoise",
-      data: {
-        "Classification": "Malicious",
-        "Scanner Type": "Exploitation",
-        "First Seen": "2025-10-15",
-        "Tags": ["VPN", "Tor Exit Node"]
-      }
-    },
-    {
-      name: "IPVoid",
-      data: {
-        "Blacklist Status": "5/92 blacklists",
-        "Detection Rate": "5%",
-        "Location": "Moscow, Russia",
-        "ISP": "DigitalOcean"
-      }
-    },
-    {
-      name: "Spamhaus",
-      data: {
-        "Listing Status": "Listed",
-        "Database": "XBL, PBL",
-        "Reason": "Known spam source",
-        "First Listed": "2025-11-10"
-      }
-    },
-    {
-      name: "MalwareBazaar",
-      data: {
-        "Detection": "Malware sample found",
-        "Family": "AgentTesla",
-        "File Type": "PE32",
-        "Signature": "85% confidence"
-      }
-    },
-    {
-      name: "Google Safe Browsing",
-      data: {
-        "Status": "Unsafe",
-        "Threat Type": "Malware & Social Engineering",
-        "Last Updated": "2025-11-22",
-        "Platform": "All platforms affected"
-      }
-    },
-    {
-      name: "PhishTank",
-      data: {
-        "Verification": "Verified Phishing",
-        "Votes": "27 confirmations",
-        "Submitted": "2025-11-19",
-        "Target": "Banking sector"
-      }
-    },
-    {
-      name: "CIRCL PassiveDNS",
-      data: {
-        "Records Found": "142 DNS records",
-        "First Seen": "2024-08-10",
-        "Last Seen": "2025-11-23",
-        "Associated Domains": ["malicious-site.com", "phish-example.net"]
-      }
-    },
-    {
-      name: "Pulsedive",
-      data: {
-        "Risk Score": "High",
-        "Indicators": "18 IOCs",
-        "Threat Types": ["Malware", "C2"],
-        "Last Activity": "Active today"
-      }
-    },
-    {
-      name: "ThreatCrowd",
-      data: {
-        "Related Domains": "8 domains",
-        "Related IPs": "15 IPs",
-        "Votes": "Malicious: 12 | Safe: 2",
-        "Hashes": "5 malware samples"
-      }
-    },
-    {
-      name: "Censys",
-      data: {
-        "Services": "6 services detected",
-        "Certificates": "Self-signed certificate",
-        "Tags": ["Suspicious", "Misconfigured"],
-        "Last Scan": "2025-11-23"
-      }
-    },
-    {
-      name: "BinaryEdge",
-      data: {
-        "Scan Results": "23 events",
-        "Risk Level": "High",
-        "Torrent Activity": "Detected",
-        "Malware C&C": "Potential C2 server"
+  // Load saved preferences and history
+  useEffect(() => {
+    const savedVendors = localStorage.getItem("selectedVendors");
+    if (savedVendors) {
+      try {
+        setSelectedVendors(JSON.parse(savedVendors));
+      } catch (e) {
+        console.error("Failed to parse saved vendors", e);
       }
     }
-  ];
 
-  return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Threat Intelligence Dashboard</h1>
-            <p className="text-muted-foreground">Aggregated analysis from multiple security vendors</p>
+    const savedHistory = localStorage.getItem("searchHistory");
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+  }, []);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["threatData", query, selectedVendors],
+    queryFn: () => fetchThreatData(query, selectedVendors),
+    enabled: false,
+    placeholderData: keepPreviousData,
+  });
+
+  // Auto-refetch when vendors change if we have a query and existing data
+  useEffect(() => {
+    if (query && data) {
+      refetch();
+    }
+  }, [selectedVendors]);
+
+  // Save to history when data is loaded
+  useEffect(() => {
+    if (data && query) {
+      setHistory(prev => {
+        // Avoid duplicates at the top
+        const filtered = prev.filter(item => item.query !== data.query);
+        const newHistory = [
+          { query: data.query, timestamp: Date.now(), threatLevel: data.threatLevel },
+          ...filtered
+        ].slice(0, 50); // Keep last 50 items
+
+        localStorage.setItem("searchHistory", JSON.stringify(newHistory));
+        return newHistory;
+      });
+    }
+  }, [data]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query) {
+      toast({
+        title: "Error",
+        description: "Please enter an IP address, domain, or hash",
+        variant: "destructive",
+      });
+      return;
+    }
+    refetch();
+  };
+
+  const onPivot = (artifact: string) => {
+    setQuery(artifact);
+    // Use a timeout to allow state update before triggering search
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }, 100);
+  };
+
+  const generateVendorUrls = (searchQuery: string) => {
+    const detectType = () => {
+      if (/^(\d{1,3}\.){3}\d{1,3}$/.test(searchQuery)) return "ip";
+      if (/^[a-fA-F0-9]{32,64}$/.test(searchQuery)) return "hash";
+      return "domain";
+    };
+
+    const type = detectType();
+    const urls: string[] = [];
+
+    if (type === "ip") {
+      urls.push(`VirusTotal: https://www.virustotal.com/gui/ip-address/${searchQuery}`);
+      urls.push(`AbuseIPDB: https://www.abuseipdb.com/check/${searchQuery}`);
+      urls.push(`AlienVault OTX: https://otx.alienvault.com/indicator/ip/${searchQuery}`);
+      urls.push(`Shodan: https://www.shodan.io/host/${searchQuery}`);
+      urls.push(`Censys: https://search.censys.io/hosts/${searchQuery}`);
+      urls.push(`GreyNoise: https://viz.greynoise.io/ip/${searchQuery}`);
+      urls.push(`ThreatCrowd: https://www.threatcrowd.org/ip.php?ip=${searchQuery}`);
+      urls.push(`IPQualityScore: https://www.ipqualityscore.com/free-ip-lookup-proxy-vpn-test/lookup/${searchQuery}`);
+      urls.push(`Criminal IP: https://www.criminalip.io/asset/report/${searchQuery}`);
+    } else if (type === "domain") {
+      urls.push(`VirusTotal: https://www.virustotal.com/gui/domain/${searchQuery}`);
+      urls.push(`AlienVault OTX: https://otx.alienvault.com/indicator/domain/${searchQuery}`);
+      urls.push(`ThreatCrowd: https://www.threatcrowd.org/domain.php?domain=${searchQuery}`);
+      urls.push(`URLhaus: https://urlhaus.abuse.ch/browse.php?search=${searchQuery}`);
+      urls.push(`PhishStats: https://phishstats.info/#/search?url=${searchQuery}`);
+    } else if (type === "hash") {
+      urls.push(`VirusTotal: https://www.virustotal.com/gui/file/${searchQuery}`);
+      urls.push(`Hybrid Analysis: https://www.hybrid-analysis.com/search?query=${searchQuery}`);
+      urls.push(`MalwareBazaar: https://bazaar.abuse.ch/browse.php?search=hash:${searchQuery}`);
+      urls.push(`CIRCL: https://hashlookup.circl.lu/lookup/md5/${searchQuery}`);
+    }
+
+    return urls.join("\n\n");
+  };
+
+  const copyVendorLinks = () => {
+    const links = generateVendorUrls(query);
+    navigator.clipboard.writeText(links);
+    toast({
+      title: "Copied!",
+      description: `${links.split("\n\n").length} vendor links copied to clipboard`,
+    });
+  };
+
+  const getVendorIcon = (name: string) => {
+    switch (name) {
+      case "VirusTotal": return <Shield className="h-5 w-5 text-primary" />;
+      case "AbuseIPDB": return <AlertTriangle className="h-5 w-5 text-primary" />;
+      case "AlienVault OTX": return <Eye className="h-5 w-5 text-primary" />;
+      case "Shodan": return <Radar className="h-5 w-5 text-primary" />;
+      case "URLhaus": return <LinkIcon className="h-5 w-5 text-primary" />;
+      case "ThreatFox": return <Database className="h-5 w-5 text-primary" />;
+      case "MalwareBazaar": return <Bug className="h-5 w-5 text-primary" />;
+      case "Google Safe Browsing": return <Shield className="h-5 w-5 text-primary" />;
+      case "PhishTank": return <LinkIcon className="h-5 w-5 text-primary" />;
+      case "Pulsedive": return <Radar className="h-5 w-5 text-primary" />;
+      case "ThreatCrowd": return <Eye className="h-5 w-5 text-primary" />;
+      case "Censys": return <Globe className="h-5 w-5 text-primary" />;
+      case "BinaryEdge": return <FileSearch className="h-5 w-5 text-primary" />;
+      case "GreyNoise": return <Radar className="h-5 w-5 text-primary" />;
+      case "IPQualityScore": return <Shield className="h-5 w-5 text-primary" />;
+      case "Hybrid Analysis": return <Bug className="h-5 w-5 text-primary" />;
+      case "CIRCL hashlookup": return <Database className="h-5 w-5 text-primary" />;
+      case "Criminal IP": return <AlertTriangle className="h-5 w-5 text-primary" />;
+      case "MetaDefender": return <Shield className="h-5 w-5 text-primary" />;
+      case "PhishStats": return <LinkIcon className="h-5 w-5 text-primary" />;
+      case "Ransomware.live": return <Bug className="h-5 w-5 text-primary" />;
+      case "WHOIS": return <FileSearch className="h-5 w-5 text-primary" />;
+      case "IP Geolocation": return <Globe className="h-5 w-5 text-primary" />;
+      default: return <Shield className="h-5 w-5 text-primary" />;
+    }
+  };
+
+  const getVendorLink = (name: string) => {
+    switch (name) {
+      case "VirusTotal": return "https://virustotal.com";
+      case "AbuseIPDB": return "https://abuseipdb.com";
+      case "AlienVault OTX": return "https://otx.alienvault.com";
+      case "Shodan": return "https://shodan.io";
+      case "URLhaus": return "https://urlhaus.abuse.ch";
+      case "ThreatFox": return "https://threatfox.abuse.ch";
+      case "MalwareBazaar": return "https://bazaar.abuse.ch";
+      case "Google Safe Browsing": return "https://safebrowsing.google.com";
+      case "PhishTank": return "https://phishtank.com";
+      case "Pulsedive": return "https://pulsedive.com";
+      case "ThreatCrowd": return "https://threatcrowd.org";
+      case "Censys": return "https://censys.io";
+      case "BinaryEdge": return "https://binaryedge.io";
+      case "GreyNoise": return "https://greynoise.io";
+      case "IPQualityScore": return "https://ipqualityscore.com";
+      case "Hybrid Analysis": return "https://hybrid-analysis.com";
+      case "CIRCL hashlookup": return "https://hashlookup.circl.lu";
+      case "Criminal IP": return "https://criminalip.io";
+      case "MetaDefender": return "https://metadefender.opswat.com";
+      case "PhishStats": return "https://phishstats.info";
+      case "Ransomware.live": return "https://ransomware.live";
+      case "WHOIS": return undefined;
+      case "IP Geolocation": return undefined;
+      default: return undefined;
+    }
+  };
+
+  if (!data && !isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="absolute top-4 right-4 flex gap-2">
+          <HistorySidebar
+            history={history}
+            onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
+            onClear={() => { setHistory([]); localStorage.removeItem("searchHistory"); }}
+          />
+          <ThemeToggle />
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <div className="max-w-2xl w-full space-y-8 text-center">
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-6xl font-bold tracking-tight">ThreatSumm4ry</h1>
+              <p className="text-xl text-muted-foreground">
+                Aggregated analysis from multiple security vendors
+              </p>
+            </div>
+
+            <div className="p-6 bg-card rounded-xl border shadow-sm">
+              <SearchForm
+                query={query}
+                setQuery={setQuery}
+                onSubmit={handleSearch}
+                isLoading={isLoading}
+                className="md:h-12"
+              />
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Shield className="h-4 w-4" />
+                <span>Enter an IP address, domain, or hash to start analysis</span>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Make sure to configure your API keys in the .env file
+            </p>
           </div>
         </div>
 
-        {/* Summary Card */}
-        <ThreatSummary 
-          query={query}
-          overallScore={73}
-          threatLevel="suspicious"
-          totalVendors={23}
-          detections={17}
-          vendorData={vendorData}
-        />
+        <Footer />
+      </div>
+    );
+  }
 
-        {/* Vendor Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* VirusTotal */}
-          <VendorCard
-            title="VirusTotal"
-            description="Multi-vendor malware scanner"
-            icon={<Shield className="h-5 w-5 text-primary" />}
-            externalLink="https://virustotal.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Detection Rate</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={23} className="flex-1" />
-                  <span className="font-semibold">15/65</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Status</p>
-                <ThreatBadge level="suspicious" label="Suspicious" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Top Detections</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">Kaspersky</Badge>
-                  <Badge variant="outline">BitDefender</Badge>
-                  <Badge variant="outline">ESET-NOD32</Badge>
-                </div>
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b pb-6">
+            <div>
+              <h1 className="text-3xl font-bold">ThreatSumm4ry Dashboard</h1>
+              <p className="text-sm text-muted-foreground mt-1">{selectedVendors.length} vendors enabled</p>
+            </div>
+
+            <div className="flex gap-2 items-center flex-wrap">
+              <VendorFilter
+                selectedVendors={selectedVendors}
+                onVendorsChange={setSelectedVendors}
+              />
+              <HistorySidebar
+                history={history}
+                onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
+                onClear={() => { setHistory([]); localStorage.removeItem("searchHistory"); }}
+              />
+              <ThemeToggle />
+              <div className="w-full md:w-auto md:min-w-[400px]">
+                <SearchForm
+                  query={query}
+                  setQuery={setQuery}
+                  onSubmit={handleSearch}
+                  isLoading={isLoading}
+                />
               </div>
             </div>
-          </VendorCard>
+          </div>
 
-          {/* AbuseIPDB */}
-          <VendorCard
-            title="AbuseIPDB"
-            description="IP reputation database"
-            icon={<AlertTriangle className="h-5 w-5 text-primary" />}
-            externalLink="https://abuseipdb.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Abuse Confidence Score</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={78} className="flex-1" />
-                  <span className="font-semibold text-threat-malicious">78%</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Reports</p>
-                <p className="text-2xl font-bold">142 reports</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Last Report</p>
-                <p className="font-mono text-sm">2025-11-20 14:32 UTC</p>
-              </div>
+          {error && (
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
+              <p>Error: {(error as Error).message}</p>
             </div>
-          </VendorCard>
+          )}
 
-          {/* Fortinet FortiGuard */}
-          <VendorCard
-            title="Fortinet FortiGuard"
-            description="Web filtering & threat intelligence"
-            icon={<Shield className="h-5 w-5 text-primary" />}
-            externalLink="https://fortiguard.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Category</p>
-                <Badge variant="secondary" className="text-sm">Proxy Avoidance</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Risk Level</p>
-                <ThreatBadge level="malicious" label="High Risk" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Additional Info</p>
-                <p className="text-sm">Known proxy server, potential malicious activity</p>
-              </div>
-            </div>
-          </VendorCard>
+          <div className="flex items-center gap-2 mb-4">
+            {data && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyVendorLinks}
+                  className="gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy All Vendor Links
+                </Button>
+                <ExportButton data={data} />
+              </>
+            )}
+          </div>
 
-          {/* Kaspersky TIP */}
-          <VendorCard
-            title="Kaspersky Threat Intelligence"
-            description="Advanced threat analysis"
-            icon={<Bug className="h-5 w-5 text-primary" />}
-            externalLink="https://tip.kaspersky.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Reputation</p>
-                <ThreatBadge level="safe" label="Clean" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Context</p>
-                <p className="text-sm">No known malicious activity detected in the last 90 days</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Categories</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">Infrastructure</Badge>
-                  <Badge variant="outline">Unknown</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
+          {data && (
+            <>
+              <ThreatSummary
+                query={data.query}
+                overallScore={data.overallScore}
+                threatLevel={data.threatLevel}
+                totalVendors={data.totalVendors}
+                detections={data.detections}
+                vendorData={data.vendorData}
+              />
 
-          {/* Shodan */}
-          <VendorCard
-            title="Shodan"
-            description="Internet-connected device search"
-            icon={<Radar className="h-5 w-5 text-primary" />}
-            externalLink="https://shodan.io"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Open Ports</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">22/SSH</Badge>
-                  <Badge variant="secondary">80/HTTP</Badge>
-                  <Badge variant="secondary">443/HTTPS</Badge>
-                  <Badge variant="secondary">3306/MySQL</Badge>
-                </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {data.vendorData
+                  .map((vendor) => (
+                    <VendorCard
+                      key={vendor.name}
+                      title={vendor.name}
+                      icon={getVendorIcon(vendor.name)}
+                      externalLink={getVendorLink(vendor.name)}
+                    >
+                      <VendorContent vendor={vendor} onPivot={onPivot} />
+                    </VendorCard>
+                  ))}
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Detected Services</p>
-                <p className="text-sm">nginx/1.18.0, OpenSSH 8.2, MySQL 5.7</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Vulnerabilities</p>
-                <p className="text-2xl font-bold text-threat-suspicious">3 CVEs</p>
-              </div>
-            </div>
-          </VendorCard>
+            </>
+          )}
 
-          {/* URLhaus */}
-          <VendorCard
-            title="URLhaus"
-            description="Malware URL sharing"
-            icon={<LinkIcon className="h-5 w-5 text-primary" />}
-            externalLink="https://urlhaus.abuse.ch"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Detection Status</p>
-                <ThreatBadge level="malicious" label="Malicious URL Detected" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Confidence</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={95} className="flex-1" />
-                  <span className="font-semibold text-threat-malicious">95%</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Threat Type</p>
-                <Badge variant="destructive">Malware Distribution</Badge>
-              </div>
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+              <p className="text-lg text-muted-foreground">Analyzing target...</p>
             </div>
-          </VendorCard>
-
-          {/* ThreatFox */}
-          <VendorCard
-            title="ThreatFox"
-            description="IOC database"
-            icon={<Database className="h-5 w-5 text-primary" />}
-            externalLink="https://threatfox.abuse.ch"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Botnet Detection</p>
-                <ThreatBadge level="malicious" label="Emotet C2" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Confidence Level</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={88} className="flex-1" />
-                  <span className="font-semibold">88%</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Tags</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">Emotet</Badge>
-                  <Badge variant="outline">C2</Badge>
-                  <Badge variant="outline">Banking Trojan</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Hybrid Analysis */}
-          <VendorCard
-            title="Hybrid Analysis"
-            description="Malware analysis sandbox"
-            icon={<FileSearch className="h-5 w-5 text-primary" />}
-            externalLink="https://hybrid-analysis.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Threat Score</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={65} className="flex-1" />
-                  <span className="font-semibold">65/100</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Sample Hashes</p>
-                <p className="font-mono text-xs break-all">a3f2c9d8e1b4...</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Status</p>
-                <ThreatBadge level="suspicious" label="Potentially Malicious" />
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* AlienVault OTX */}
-          <VendorCard
-            title="AlienVault OTX"
-            description="Open threat exchange"
-            icon={<Eye className="h-5 w-5 text-primary" />}
-            externalLink="https://otx.alienvault.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Pulse Count</p>
-                <p className="text-2xl font-bold">24 pulses</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Status</p>
-                <ThreatBadge level="suspicious" label="Suspicious Activity" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Summary</p>
-                <p className="text-sm">Associated with spam campaigns and phishing attempts</p>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Web Categorization */}
-          <VendorCard
-            title="Web Categorization"
-            description="Multiple vendor classifications"
-            icon={<Globe className="h-5 w-5 text-primary" />}
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">BlueCoat</p>
-                <Badge variant="secondary">Suspicious</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Sophos</p>
-                <Badge variant="secondary">Uncategorized</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Fortinet</p>
-                <Badge variant="destructive">High Risk</Badge>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Cisco Talos */}
-          <VendorCard
-            title="Cisco Talos"
-            description="Threat intelligence & research"
-            icon={<Shield className="h-5 w-5 text-primary" />}
-            externalLink="https://talosintelligence.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Reputation</p>
-                <ThreatBadge level="malicious" label="Poor" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Email Volume</p>
-                <Badge variant="destructive">High</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Web Reputation</p>
-                <p className="text-sm">Untrusted - Spam Source</p>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* IBM X-Force */}
-          <VendorCard
-            title="IBM X-Force"
-            description="Security intelligence platform"
-            icon={<Database className="h-5 w-5 text-primary" />}
-            externalLink="https://exchange.xforce.ibmcloud.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Risk Score</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={75} className="flex-1" />
-                  <span className="font-semibold text-threat-malicious">7.5/10</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Category</p>
-                <Badge variant="destructive">Malware</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Location</p>
-                <p className="text-sm">Russia - 89 reports</p>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* GreyNoise */}
-          <VendorCard
-            title="GreyNoise"
-            description="Internet scanner detection"
-            icon={<Radar className="h-5 w-5 text-primary" />}
-            externalLink="https://greynoise.io"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Classification</p>
-                <ThreatBadge level="malicious" label="Malicious" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Scanner Type</p>
-                <Badge variant="destructive">Exploitation</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Tags</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">VPN</Badge>
-                  <Badge variant="outline">Tor Exit Node</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* IPVoid */}
-          <VendorCard
-            title="IPVoid"
-            description="IP blacklist checker"
-            icon={<AlertTriangle className="h-5 w-5 text-primary" />}
-            externalLink="https://ipvoid.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Blacklist Status</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={5} className="flex-1" />
-                  <span className="font-semibold">5/92</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Location</p>
-                <p className="text-sm">Moscow, Russia</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">ISP</p>
-                <Badge variant="secondary">DigitalOcean</Badge>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Spamhaus */}
-          <VendorCard
-            title="Spamhaus"
-            description="Real-time spam blocklist"
-            icon={<AlertTriangle className="h-5 w-5 text-primary" />}
-            externalLink="https://spamhaus.org"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Listing Status</p>
-                <ThreatBadge level="malicious" label="Listed" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Database</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="destructive">XBL</Badge>
-                  <Badge variant="destructive">PBL</Badge>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Reason</p>
-                <p className="text-sm">Known spam source - First listed 2025-11-10</p>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* MalwareBazaar */}
-          <VendorCard
-            title="MalwareBazaar"
-            description="Malware sample database"
-            icon={<Bug className="h-5 w-5 text-primary" />}
-            externalLink="https://bazaar.abuse.ch"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Detection</p>
-                <ThreatBadge level="malicious" label="Malware Sample Found" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Family</p>
-                <Badge variant="destructive">AgentTesla</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Confidence</p>
-                <div className="flex items-center gap-3">
-                  <Progress value={85} className="flex-1" />
-                  <span className="font-semibold">85%</span>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Google Safe Browsing */}
-          <VendorCard
-            title="Google Safe Browsing"
-            description="Web safety verification"
-            icon={<Shield className="h-5 w-5 text-primary" />}
-            externalLink="https://safebrowsing.google.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Status</p>
-                <ThreatBadge level="malicious" label="Unsafe" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Threat Type</p>
-                <Badge variant="destructive">Malware & Social Engineering</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Platform Impact</p>
-                <p className="text-sm">All platforms affected</p>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* PhishTank */}
-          <VendorCard
-            title="PhishTank"
-            description="Phishing site verification"
-            icon={<LinkIcon className="h-5 w-5 text-primary" />}
-            externalLink="https://phishtank.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Verification</p>
-                <ThreatBadge level="malicious" label="Verified Phishing" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Community Votes</p>
-                <p className="text-2xl font-bold text-threat-malicious">27</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Target Sector</p>
-                <Badge variant="destructive">Banking</Badge>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* CIRCL PassiveDNS */}
-          <VendorCard
-            title="CIRCL PassiveDNS"
-            description="DNS records tracking"
-            icon={<Database className="h-5 w-5 text-primary" />}
-            externalLink="https://www.circl.lu"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Records Found</p>
-                <p className="text-2xl font-bold">142</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Active Period</p>
-                <p className="text-sm">2024-08-10 to 2025-11-23</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Associated</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">malicious-site.com</Badge>
-                  <Badge variant="outline">phish-example.net</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Pulsedive */}
-          <VendorCard
-            title="Pulsedive"
-            description="Threat intelligence platform"
-            icon={<Radar className="h-5 w-5 text-primary" />}
-            externalLink="https://pulsedive.com"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Risk Score</p>
-                <ThreatBadge level="malicious" label="High Risk" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Indicators</p>
-                <p className="text-2xl font-bold">18 IOCs</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Threat Types</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="destructive">Malware</Badge>
-                  <Badge variant="destructive">C2</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* ThreatCrowd */}
-          <VendorCard
-            title="ThreatCrowd"
-            description="Threat correlation engine"
-            icon={<Eye className="h-5 w-5 text-primary" />}
-            externalLink="https://threatcrowd.org"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Related Infrastructure</p>
-                <p className="text-sm">8 domains, 15 IPs</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Community Votes</p>
-                <p className="text-sm">Malicious: <span className="text-threat-malicious font-semibold">12</span> | Safe: <span className="text-threat-safe font-semibold">2</span></p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Malware Samples</p>
-                <p className="text-2xl font-bold">5 hashes</p>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* Censys */}
-          <VendorCard
-            title="Censys"
-            description="Internet asset search"
-            icon={<Globe className="h-5 w-5 text-primary" />}
-            externalLink="https://censys.io"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Services Detected</p>
-                <p className="text-2xl font-bold">6</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Certificate</p>
-                <Badge variant="secondary">Self-signed</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Tags</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">Suspicious</Badge>
-                  <Badge variant="outline">Misconfigured</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
-
-          {/* BinaryEdge */}
-          <VendorCard
-            title="BinaryEdge"
-            description="Cybersecurity data platform"
-            icon={<FileSearch className="h-5 w-5 text-primary" />}
-            externalLink="https://binaryedge.io"
-          >
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Scan Results</p>
-                <p className="text-2xl font-bold">23 events</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Risk Level</p>
-                <ThreatBadge level="malicious" label="High Risk" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Activity</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="destructive">Torrent</Badge>
-                  <Badge variant="destructive">Potential C2</Badge>
-                </div>
-              </div>
-            </div>
-          </VendorCard>
+          )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

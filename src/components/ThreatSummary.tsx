@@ -3,16 +3,12 @@ import { Button } from "@/components/ui/button";
 import { ThreatBadge } from "./ThreatBadge";
 import { Copy, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface VendorData {
-  name: string;
-  data: Record<string, any>;
-}
+import { VendorData } from "@/types/threat-intelligence";
 
 interface ThreatSummaryProps {
   query: string;
   overallScore: number;
-  threatLevel: "safe" | "suspicious" | "malicious";
+  threatLevel: "safe" | "suspicious" | "malicious" | "unknown";
   totalVendors: number;
   detections: number;
   vendorData?: VendorData[];
@@ -47,7 +43,7 @@ export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, 
     fullReport += `Generated: ${new Date().toISOString()}\n`;
     fullReport += `\n${'='.repeat(50)}\n`;
     fullReport += `VENDOR DETAILS\n${'='.repeat(50)}`;
-    
+
     vendorData.forEach(vendor => {
       fullReport += formatVendorData(vendor);
     });
