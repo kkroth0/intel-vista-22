@@ -13,7 +13,7 @@ interface VendorCardProps {
 
 export const VendorCard = ({ title, description, children, externalLink, icon }: VendorCardProps) => {
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col transition-all duration-200 hover:shadow-lg hover:scale-[1.02] animate-fade-in">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -24,7 +24,7 @@ export const VendorCard = ({ title, description, children, externalLink, icon }:
             </div>
           </div>
           {externalLink && (
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="hover-scale">
               <a href={externalLink} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4" />
               </a>
