@@ -62,7 +62,7 @@ const Index = () => {
   const [query, setQuery] = useState("");
   const [selectedVendors, setSelectedVendors] = useState<string[]>(ALL_VENDORS);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-<<<<<<< HEAD
+
   const [data, setData] = useState<ThreatIntelligenceResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
