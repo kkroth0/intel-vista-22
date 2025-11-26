@@ -3,6 +3,13 @@ export interface VendorData {
     data: Record<string, any>;
     error?: string;
     isLoading?: boolean;
+    quota?: {
+        remaining?: string | number;
+        limit?: string | number;
+        reset?: string | number;
+        daily_remaining?: string | number;
+    };
+    link?: string;
 }
 
 export interface ThreatIntelligenceResult {

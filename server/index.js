@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 500, // limit each IP to 500 requests per windowMs (increased for progressive loading)
     message: 'Too many requests, please try again later.'
 });
 app.use('/api/', limiter);
@@ -35,6 +35,29 @@ const detectQueryType = (query) => {
     if (/^[a-fA-F0-9]{64}$/.test(query)) return "hash"; // SHA256
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(query)) return "ip";
     return "domain";
+};
+
+// Helper to extract quota info
+const sendResponseWithQuota = (res, axiosResponse) => {
+    const headers = axiosResponse.headers;
+    const quota = {};
+
+    // Common rate limit headers
+    if (headers['x-ratelimit-remaining']) quota.remaining = headers['x-ratelimit-remaining'];
+    if (headers['x-ratelimit-limit']) quota.limit = headers['x-ratelimit-limit'];
+    if (headers['x-ratelimit-reset']) quota.reset = headers['x-ratelimit-reset'];
+
+    // Vendor specific headers
+    // VirusTotal
+    if (headers['x-daily-requests-left']) quota.daily_remaining = headers['x-daily-requests-left'];
+
+    // AbuseIPDB
+    if (headers['x-ratelimit-remaining']) quota.remaining = headers['x-ratelimit-remaining'];
+
+    res.json({
+        data: axiosResponse.data,
+        quota: Object.keys(quota).length > 0 ? quota : undefined
+    });
 };
 
 // --- API Endpoints ---
@@ -56,7 +79,7 @@ app.post('/api/virustotal', async (req, res) => {
         const response = await axios.get(endpoint, {
             headers: { "x-apikey": process.env.VIRUSTOTAL_API_KEY }
         });
-        res.json(response.data);
+        sendResponseWithQuota(res, response);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
     }
@@ -72,10 +95,14 @@ app.post('/api/abuseipdb', async (req, res) => {
 
     try {
         const response = await axios.get(`https://api.abuseipdb.com/api/v2/check`, {
-            params: { ipAddress: query },
+            params: {
+                ipAddress: query,
+                maxAgeInDays: 90,  // Get reports from last 90 days
+                verbose: true      // Include report details
+            },
             headers: { "Key": process.env.ABUSEIPDB_API_KEY, "Accept": "application/json" }
         });
-        res.json(response.data);
+        sendResponseWithQuota(res, response);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
     }
@@ -97,7 +124,7 @@ app.post('/api/alienvault', async (req, res) => {
         else endpoint = `https://otx.alienvault.com/api/v1/indicators/url/${encodeURIComponent(query)}/general`;
 
         const response = await axios.get(endpoint, { headers });
-        res.json(response.data);
+        sendResponseWithQuota(res, response);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
     }
@@ -113,7 +140,7 @@ app.post('/api/shodan', async (req, res) => {
 
     try {
         const response = await axios.get(`https://api.shodan.io/shodan/host/${query}?key=${process.env.SHODAN_API_KEY}`);
-        res.json(response.data);
+        sendResponseWithQuota(res, response);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
     }
@@ -139,7 +166,7 @@ app.post('/api/threatfox', async (req, res) => {
     try {
         const response = await axios.post(`https://threatfox-api.abuse.ch/api/v1/`,
             { query: "search_ioc", search_term: query },
-            { headers: { "Content-Type": "application/json" } }
+            { headers: { "Content-Type": "application/json", "API-KEY": process.env.THREATFOX_API_KEY || "" } }
         );
         res.json(response.data);
     } catch (error) {
@@ -164,29 +191,7 @@ app.post('/api/malwarebazaar', async (req, res) => {
     }
 });
 
-// Google Safe Browsing
-app.post('/api/googlesafebrowsing', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.GOOGLE_SAFE_BROWSING_API_KEY) return res.status(500).json({ error: "API Key missing" });
 
-    try {
-        const response = await axios.post(
-            `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${process.env.GOOGLE_SAFE_BROWSING_API_KEY}`,
-            {
-                client: { clientId: "threat-dashboard", clientVersion: "1.0" },
-                threatInfo: {
-                    threatTypes: ["MALWARE", "SOCIAL_ENGINEERING"],
-                    platformTypes: ["ANY_PLATFORM"],
-                    threatEntryTypes: ["URL", "IP_RANGE"],
-                    threatEntries: [{ url: query }],
-                },
-            }
-        );
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 // PhishTank
 app.post('/api/phishtank', async (req, res) => {
@@ -194,7 +199,10 @@ app.post('/api/phishtank', async (req, res) => {
     try {
         const body = `url=${encodeURIComponent(query)}&format=json${process.env.PHISHTANK_API_KEY ? `&app_key=${process.env.PHISHTANK_API_KEY}` : ""}`;
         const response = await axios.post(`https://checkurl.phishtank.com/checkurl/`, body, {
-            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "phishtank/threatsumm4ry"
+            }
         });
         res.json(response.data);
     } catch (error) {
@@ -225,7 +233,9 @@ app.post('/api/threatcrowd', async (req, res) => {
             ? `https://www.threatcrowd.org/searchApi/v2/ip/report/?ip=${query}`
             : `https://www.threatcrowd.org/searchApi/v2/domain/report/?domain=${query}`;
 
-        const response = await axios.get(endpoint);
+        const response = await axios.get(endpoint, {
+            httpsAgent: new (await import('https')).Agent({ rejectUnauthorized: false })
+        });
         res.json(response.data);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
@@ -251,57 +261,11 @@ app.post('/api/censys', async (req, res) => {
     }
 });
 
-// BinaryEdge
-app.post('/api/binaryedge', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.BINARYEDGE_API_KEY) return res.status(500).json({ error: "API Key missing" });
 
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
 
-    try {
-        const response = await axios.get(`https://api.binaryedge.io/v2/query/ip/${query}`, {
-            headers: { "X-Key": process.env.BINARYEDGE_API_KEY },
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
-// GreyNoise
-app.post('/api/greynoise', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.GREYNOISE_API_KEY) return res.status(500).json({ error: "API Key missing" });
 
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
 
-    try {
-        const response = await axios.get(`https://api.greynoise.io/v3/community/${query}`, {
-            headers: { "key": process.env.GREYNOISE_API_KEY },
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
-
-// IPQualityScore
-app.post('/api/ipqs', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.IPQS_API_KEY) return res.status(500).json({ error: "API Key missing" });
-
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
-
-    try {
-        const response = await axios.get(`https://ipqualityscore.com/api/json/ip/${process.env.IPQS_API_KEY}/${query}`);
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 // Hybrid Analysis
 app.post('/api/hybridanalysis', async (req, res) => {
@@ -379,7 +343,7 @@ app.post('/api/metadefender', async (req, res) => {
         const response = await axios.get(endpoint, {
             headers: { "apikey": process.env.METADEFENDER_API_KEY },
         });
-        res.json(response.data);
+        sendResponseWithQuota(res, response);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
     }
@@ -404,7 +368,7 @@ app.post('/api/phishstats', async (req, res) => {
 app.post('/api/ransomwarelive', async (req, res) => {
     const { query } = req.body;
     try {
-        const response = await axios.get(`https://www.ransomware.live/api/recentvictims`);
+        const response = await axios.get(`https://api.ransomware.live/recentvictims`);
         res.json(response.data);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
@@ -418,7 +382,7 @@ app.post('/api/whois', async (req, res) => {
     if (queryType !== "domain") return res.json({ data: { "Status": "Domain only" } });
 
     try {
-        const response = await axios.get(`https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=at_free&domainName=${query}&outputFormat=JSON`);
+        const response = await axios.get(`https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${process.env.WHOIS_API_KEY}&domainName=${query}&outputFormat=JSON`);
         res.json(response.data);
     } catch (error) {
         res.status(error.response?.status || 500).json({ error: error.message });
@@ -438,6 +402,235 @@ app.post('/api/ipgeo', async (req, res) => {
         res.status(error.response?.status || 500).json({ error: error.message });
     }
 });
+
+// IBM X-Force Exchange
+app.post('/api/xforce', async (req, res) => {
+    const { query } = req.body;
+    if (!process.env.XFORCE_API_KEY || !process.env.XFORCE_API_PASSWORD) return res.status(500).json({ error: "API credentials missing" });
+
+    try {
+        const queryType = detectQueryType(query);
+        let endpoint = "";
+
+        if (queryType === "ip") endpoint = `https://api.xforce.ibmcloud.com/ipr/${query}`;
+        else if (queryType === "domain") endpoint = `https://api.xforce.ibmcloud.com/url/${query}`;
+        else if (queryType === "hash") endpoint = `https://api.xforce.ibmcloud.com/malware/${query}`;
+        else endpoint = `https://api.xforce.ibmcloud.com/url/${query}`;
+
+        const auth = btoa(`${process.env.XFORCE_API_KEY}:${process.env.XFORCE_API_PASSWORD}`);
+        const response = await axios.get(endpoint, {
+            headers: { "Authorization": `Basic ${auth}`, "Accept": "application/json" }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
+// Spamhaus (DNS-based lookup)
+app.post('/api/spamhaus', async (req, res) => {
+    const { query } = req.body;
+    const queryType = detectQueryType(query);
+
+    try {
+        if (queryType === "ip") {
+            // Simple check using Spamhaus ZEN blocklist via DNS
+            const reversed = query.split('.').reverse().join('.');
+            const dnsQuery = `${reversed}.zen.spamhaus.org`;
+
+            // Use a DNS resolution instead of HTTP
+            const dns = await import('dns');
+            dns.promises.resolve4(dnsQuery)
+                .then(addresses => {
+                    res.json({ listed: true, lists: addresses, status: "Listed on Spamhaus" });
+                })
+                .catch(() => {
+                    res.json({ listed: false, status: "Not listed on Spamhaus" });
+                });
+        } else if (queryType === "domain") {
+            // Check DBL
+            const dnsQuery = `${query}.dbl.spamhaus.org`;
+            const dns = await import('dns');
+            dns.promises.resolve4(dnsQuery)
+                .then(addresses => {
+                    res.json({ listed: true, lists: addresses, status: "Listed on Spamhaus DBL" });
+                })
+                .catch(() => {
+                    res.json({ listed: false, status: "Not listed on Spamhaus" });
+                });
+        } else {
+            res.json({ data: { "Status": "IP/Domain only" } });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Blocklist.de
+app.post('/api/blocklistde', async (req, res) => {
+    const { query } = req.body;
+    const queryType = detectQueryType(query);
+    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
+
+    try {
+        const response = await axios.get(`https://api.blocklist.de/api.php?ip=${query}`);
+        // API returns plain text: "attacks: X" or "not found"
+        const data = response.data;
+        const attacks = data.match(/attacks: (\d+)/);
+
+        res.json({
+            listed: attacks !== null,
+            attacks: attacks ? parseInt(attacks[1]) : 0,
+            status: attacks ? `Listed with ${attacks[1]} attacks` : "Not listed"
+        });
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
+// OpenPhish
+app.post('/api/openphish', async (req, res) => {
+    const { query } = req.body;
+    const queryType = detectQueryType(query);
+    if (queryType !== "url" && queryType !== "domain") return res.json({ data: { "Status": "URL/Domain only" } });
+
+    try {
+        // OpenPhish provides a feed, we'll check if the URL is in it
+        const response = await axios.get('https://openphish.com/feed.txt');
+        const urls = response.data.split('\n');
+        const found = urls.some(url => url.includes(query));
+
+        res.json({
+            listed: found,
+            status: found ? "Listed as phishing" : "Not found in OpenPhish feed"
+        });
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
+// DShield (SANS ISC)
+app.post('/api/dshield', async (req, res) => {
+    const { query } = req.body;
+    const queryType = detectQueryType(query);
+    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
+
+    try {
+        const response = await axios.get(`https://isc.sans.edu/api/ip/${query}?json`);
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
+// Team Cymru
+app.post('/api/teamcymru', async (req, res) => {
+    const { query } = req.body;
+    const queryType = detectQueryType(query);
+
+    try {
+        if (queryType === "ip") {
+            // Use Team Cymru's IP to ASN service
+            const reversed = query.split('.').reverse().join('.');
+            const dnsQuery = `${reversed}.origin.asn.cymru.com`;
+
+            const dns = await import('dns');
+            dns.promises.resolveTxt(dnsQuery)
+                .then(records => {
+                    // Parse response: "ASN | IP | BGP Prefix | CC | Registry | Allocated"
+                    const parts = records[0][0].split('|').map(s => s.trim());
+                    res.json({
+                        asn: parts[0],
+                        bgp_prefix: parts[1],
+                        country: parts[2],
+                        registry: parts[3],
+                        allocated: parts[4]
+                    });
+                })
+                .catch(() => {
+                    res.json({ status: "No data found" });
+                });
+        } else if (queryType === "hash") {
+            // Team Cymru MHR (Malware Hash Registry)
+            const dnsQuery = `${query}.malware.hash.cymru.com`;
+            const dns = await import('dns');
+            dns.promises.resolveTxt(dnsQuery)
+                .then(records => {
+                    const timestamp = records[0][0];
+                    res.json({
+                        listed: true,
+                        last_seen: timestamp,
+                        status: "Hash found in Team Cymru MHR"
+                    });
+                })
+                .catch(() => {
+                    res.json({ listed: false, status: "Hash not found" });
+                });
+        } else {
+            res.json({ data: { "Status": "IP/Hash only" } });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// BinaryEdge
+app.post('/api/binaryedge', async (req, res) => {
+    const { query } = req.body;
+    if (!process.env.BINARYEDGE_API_KEY) return res.status(500).json({ error: "API Key missing" });
+
+    const queryType = detectQueryType(query);
+    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
+
+    try {
+        const response = await axios.get(`https://api.binaryedge.io/v2/query/ip/${query}`, {
+            headers: { "X-Key": process.env.BINARYEDGE_API_KEY }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
+// GreyNoise
+app.post('/api/greynoise', async (req, res) => {
+    const { query } = req.body;
+    if (!process.env.GREYNOISE_API_KEY) return res.status(500).json({ error: "API Key missing" });
+
+    const queryType = detectQueryType(query);
+    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
+
+    try {
+        const response = await axios.get(`https://api.greynoise.io/v3/community/${query}`, {
+            headers: { "key": process.env.GREYNOISE_API_KEY }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
+// IPQualityScore
+app.post('/api/ipqs', async (req, res) => {
+    const { query } = req.body;
+    if (!process.env.IPQS_API_KEY) return res.status(500).json({ error: "API Key missing" });
+
+    const queryType = detectQueryType(query);
+    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
+
+    try {
+        const response = await axios.get(`https://ipqualityscore.com/api/json/ip/${process.env.IPQS_API_KEY}/${query}`, {
+            params: {
+                strictness: 0,
+                allow_public_access_points: true
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ error: error.message });
+    }
+});
+
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

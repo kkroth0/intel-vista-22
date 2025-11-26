@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { Shield, AlertTriangle, Bug, FileSearch, Globe, Link as LinkIcon, Radar, Database, Eye, Search, Copy } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Shield, AlertTriangle, Bug, FileSearch, Globe, Link as LinkIcon, Radar, Database, Eye, Search, Copy, RefreshCw, BookOpen } from "lucide-react";
 import { ThreatSummary } from "@/components/ThreatSummary";
 import { VendorCard } from "@/components/VendorCard";
 import { VendorContent } from "@/components/VendorContent";
@@ -11,8 +12,9 @@ import { HistorySidebar } from "@/components/HistorySidebar";
 import { ExportButton } from "@/components/ExportButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { fetchThreatData } from "@/services/threatApi";
+import { fetchThreatData, fetchThreatDataProgressive } from "@/services/threatApi";
 import { useToast } from "@/hooks/use-toast";
+import { ThreatIntelligenceResult } from "@/types/threat-intelligence";
 
 interface SearchFormProps {
   query: string;
@@ -41,7 +43,8 @@ const ALL_VENDORS = [
   "Shodan", "URLhaus", "ThreatFox", "MalwareBazaar", "Google Safe Browsing",
   "PhishTank", "Pulsedive", "ThreatCrowd", "Censys", "BinaryEdge",
   "GreyNoise", "IPQualityScore", "Hybrid Analysis", "CIRCL hashlookup",
-  "Criminal IP", "MetaDefender", "PhishStats", "Ransomware.live"
+  "Criminal IP", "MetaDefender", "PhishStats", "Ransomware.live",
+  "IBM X-Force", "Spamhaus", "Blocklist.de", "OpenPhish", "DShield", "Team Cymru"
 ];
 
 interface HistoryItem {
@@ -50,10 +53,14 @@ interface HistoryItem {
   threatLevel: "safe" | "suspicious" | "malicious" | "unknown";
 }
 
+
 const Index = () => {
   const [query, setQuery] = useState("");
   const [selectedVendors, setSelectedVendors] = useState<string[]>(ALL_VENDORS);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [data, setData] = useState<ThreatIntelligenceResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Load saved preferences and history
@@ -77,38 +84,7 @@ const Index = () => {
     }
   }, []);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["threatData", query, selectedVendors],
-    queryFn: () => fetchThreatData(query, selectedVendors),
-    enabled: false,
-    placeholderData: keepPreviousData,
-  });
-
-  // Auto-refetch when vendors change if we have a query and existing data
-  useEffect(() => {
-    if (query && data) {
-      refetch();
-    }
-  }, [selectedVendors]);
-
-  // Save to history when data is loaded
-  useEffect(() => {
-    if (data && query) {
-      setHistory(prev => {
-        // Avoid duplicates at the top
-        const filtered = prev.filter(item => item.query !== data.query);
-        const newHistory = [
-          { query: data.query, timestamp: Date.now(), threatLevel: data.threatLevel },
-          ...filtered
-        ].slice(0, 50); // Keep last 50 items
-
-        localStorage.setItem("searchHistory", JSON.stringify(newHistory));
-        return newHistory;
-      });
-    }
-  }, [data]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query) {
       toast({
@@ -118,7 +94,61 @@ const Index = () => {
       });
       return;
     }
-    refetch();
+
+    setIsAnalyzing(true);
+    setError(null);
+    // Initialize with loading cards for all selected vendors
+    setData({
+      query,
+      overallScore: 0,
+      threatLevel: "unknown",
+      totalVendors: selectedVendors.length,
+      detections: 0,
+      vendorData: selectedVendors.map(vendorName => ({
+        name: vendorName,
+        data: {},
+        loading: true
+      }))
+    });
+
+    try {
+      const finalResult = await fetchThreatDataProgressive(query, selectedVendors, (vendorData) => {
+        setData(prev => {
+          if (!prev) return null;
+          // Replace the loading vendor card with actual data
+          return {
+            ...prev,
+            vendorData: prev.vendorData.map(v =>
+              v.name === vendorData.name ? { ...vendorData, loading: false } : v
+            )
+          };
+        });
+      });
+
+      setData(finalResult);
+
+      // Update history
+      setHistory(prev => {
+        const filtered = prev.filter(item => item.query !== finalResult.query);
+        const newHistory = [
+          { query: finalResult.query, timestamp: Date.now(), threatLevel: finalResult.threatLevel },
+          ...filtered
+        ].slice(0, 50);
+        localStorage.setItem("searchHistory", JSON.stringify(newHistory));
+        return newHistory;
+      });
+
+    } catch (error) {
+      console.error("Analysis error:", error);
+      setError("Failed to fetch threat data");
+      toast({
+        title: "Error",
+        description: "Failed to fetch threat data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const onPivot = (artifact: string) => {
@@ -233,10 +263,15 @@ const Index = () => {
     }
   };
 
-  if (!data && !isLoading) {
+  if (!data && !isAnalyzing) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <div className="absolute top-4 right-4 flex gap-2">
+          <Link to="/vendors">
+            <Button variant="outline" size="icon" title="Vendor Directory">
+              <BookOpen className="h-4 w-4" />
+            </Button>
+          </Link>
           <HistorySidebar
             history={history}
             onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
@@ -259,7 +294,7 @@ const Index = () => {
                 query={query}
                 setQuery={setQuery}
                 onSubmit={handleSearch}
-                isLoading={isLoading}
+                isLoading={isAnalyzing}
                 className="md:h-12"
               />
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -294,6 +329,12 @@ const Index = () => {
                 selectedVendors={selectedVendors}
                 onVendorsChange={setSelectedVendors}
               />
+              <Link to="/vendors">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Vendors
+                </Button>
+              </Link>
               <HistorySidebar
                 history={history}
                 onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
@@ -305,7 +346,7 @@ const Index = () => {
                   query={query}
                   setQuery={setQuery}
                   onSubmit={handleSearch}
-                  isLoading={isLoading}
+                  isLoading={isAnalyzing}
                 />
               </div>
             </div>
@@ -313,13 +354,23 @@ const Index = () => {
 
           {error && (
             <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
-              <p>Error: {(error as Error).message}</p>
+              <p>Error: {error}</p>
             </div>
           )}
 
           <div className="flex items-center gap-2 mb-4">
             {data && (
               <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSearch}
+                  disabled={isAnalyzing}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isAnalyzing ? "animate-spin" : ""}`} />
+                  Re-analyze
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -345,14 +396,34 @@ const Index = () => {
                 vendorData={data.vendorData}
               />
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
                 {data.vendorData
+                  .sort((a, b) => {
+                    // Define vendor importance tiers
+                    const tier1 = ["VirusTotal", "AbuseIPDB"];
+                    const tier2 = ["Shodan", "AlienVault OTX", "Criminal IP"];
+                    const tier3 = ["Pulsedive", "URLhaus", "ThreatFox", "PhishTank"];
+
+                    const getTier = (name: string) => {
+                      if (tier1.includes(name)) return 1;
+                      if (tier2.includes(name)) return 2;
+                      if (tier3.includes(name)) return 3;
+                      return 4; // Others
+                    };
+
+                    const tierA = getTier(a.name);
+                    const tierB = getTier(b.name);
+
+                    // Sort by tier first, then alphabetically within tier
+                    if (tierA !== tierB) return tierA - tierB;
+                    return a.name.localeCompare(b.name);
+                  })
                   .map((vendor) => (
                     <VendorCard
                       key={vendor.name}
                       title={vendor.name}
                       icon={getVendorIcon(vendor.name)}
-                      externalLink={getVendorLink(vendor.name)}
+                      externalLink={vendor.link}
                     >
                       <VendorContent vendor={vendor} onPivot={onPivot} />
                     </VendorCard>
@@ -361,7 +432,7 @@ const Index = () => {
             </>
           )}
 
-          {isLoading && (
+          {isAnalyzing && (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
               <p className="text-lg text-muted-foreground">Analyzing target...</p>

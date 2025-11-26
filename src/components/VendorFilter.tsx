@@ -35,15 +35,18 @@ const VENDOR_LIST: VendorConfig[] = [
     { name: "Pulsedive", free: true, supportsIP: true, supportsDomain: true, supportsHash: true },
     { name: "ThreatCrowd", free: true, supportsIP: true, supportsDomain: true, supportsHash: false },
     { name: "Censys", free: false, supportsIP: true, supportsDomain: false, supportsHash: false },
-    { name: "BinaryEdge", free: false, supportsIP: true, supportsDomain: false, supportsHash: false },
-    { name: "GreyNoise", free: false, supportsIP: true, supportsDomain: false, supportsHash: false },
-    { name: "IPQualityScore", free: false, supportsIP: true, supportsDomain: false, supportsHash: false },
     { name: "Hybrid Analysis", free: false, supportsIP: false, supportsDomain: false, supportsHash: true },
     { name: "CIRCL hashlookup", free: true, supportsIP: false, supportsDomain: false, supportsHash: true },
     { name: "Criminal IP", free: false, supportsIP: true, supportsDomain: true, supportsHash: false },
     { name: "MetaDefender", free: false, supportsIP: true, supportsDomain: false, supportsHash: true },
     { name: "PhishStats", free: true, supportsIP: false, supportsDomain: true, supportsHash: false },
     { name: "Ransomware.live", free: true, supportsIP: false, supportsDomain: true, supportsHash: false },
+    { name: "IBM X-Force", free: false, supportsIP: true, supportsDomain: true, supportsHash: true },
+    { name: "Spamhaus", free: true, supportsIP: true, supportsDomain: true, supportsHash: false },
+    { name: "Blocklist.de", free: true, supportsIP: true, supportsDomain: false, supportsHash: false },
+    { name: "OpenPhish", free: true, supportsIP: false, supportsDomain: true, supportsHash: false },
+    { name: "DShield", free: true, supportsIP: true, supportsDomain: false, supportsHash: false },
+    { name: "Team Cymru", free: true, supportsIP: true, supportsDomain: false, supportsHash: true },
 ];
 
 interface VendorFilterProps {

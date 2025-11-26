@@ -13,7 +13,7 @@ interface VendorCardProps {
 
 export const VendorCard = ({ title, description, children, externalLink, icon }: VendorCardProps) => {
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="flex flex-col break-inside-avoid mb-4 border-2 shadow-md hover:shadow-lg transition-shadow duration-200">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -32,7 +32,7 @@ export const VendorCard = ({ title, description, children, externalLink, icon }:
           )}
         </div>
       </CardHeader>
-      <CardContent className="flex-1">{children}</CardContent>
+      <CardContent>{children}</CardContent>
     </Card>
   );
 };

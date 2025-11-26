@@ -57,15 +57,7 @@ This document lists the APIs used in the Threat Intelligence Dashboard, along wi
 *   **API Documentation:** [https://api.xforce.ibmcloud.com/doc/](https://api.xforce.ibmcloud.com/doc/)
 *   **Get API Key:** Sign up for an IBM ID and generate a key.
 
-## 12. GreyNoise
-*   **Website:** [https://www.greynoise.io/](https://www.greynoise.io/)
-*   **API Documentation:** [https://docs.greynoise.io/](https://docs.greynoise.io/)
-*   **Get API Key:** Free community account available.
 
-## 13. IPVoid
-*   **Website:** [https://www.ipvoid.com/](https://www.ipvoid.com/)
-*   **API Documentation:** [https://www.ipvoid.com/api-documentation/](https://www.ipvoid.com/api-documentation/)
-*   **Get API Key:** Paid service mainly.
 
 ## 14. Spamhaus
 *   **Website:** [https://www.spamhaus.org/](https://www.spamhaus.org/)
@@ -77,10 +69,7 @@ This document lists the APIs used in the Threat Intelligence Dashboard, along wi
 *   **API Documentation:** [https://bazaar.abuse.ch/api/](https://bazaar.abuse.ch/api/)
 *   **Get API Key:** Open for queries.
 
-## 16. Google Safe Browsing
-*   **Website:** [https://developers.google.com/safe-browsing/](https://developers.google.com/safe-browsing/)
-*   **API Documentation:** [https://developers.google.com/safe-browsing/v4](https://developers.google.com/safe-browsing/v4)
-*   **Get API Key:** Get a key from Google Cloud Console.
+
 
 ## 17. PhishTank
 *   **Website:** [https://www.phishtank.com/](https://www.phishtank.com/)
@@ -107,7 +96,4 @@ This document lists the APIs used in the Threat Intelligence Dashboard, along wi
 *   **API Documentation:** [https://search.censys.io/api](https://search.censys.io/api)
 *   **Get API Key:** Free community account available.
 
-## 22. BinaryEdge
-*   **Website:** [https://www.binaryedge.io/](https://www.binaryedge.io/)
-*   **API Documentation:** [https://docs.binaryedge.io/](https://docs.binaryedge.io/)
-*   **Get API Key:** Free plan available.
+

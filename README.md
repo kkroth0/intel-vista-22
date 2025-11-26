@@ -40,11 +40,7 @@
 - 🔑 VirusTotal
 - 🔑 AbuseIPDB
 - 🔑 Shodan
-- 🔑 Google Safe Browsing
-- 🔑 Censys
-- 🔑 BinaryEdge
-- 🔑 GreyNoise
-- 🔑 IPQualityScore
+
 - 🔑 Hybrid Analysis
 - 🔑 Criminal IP
 - 🔑 MetaDefender
@@ -86,12 +82,7 @@ Create a `.env` file in the root directory:
 VITE_VIRUSTOTAL_API_KEY=your_key_here
 VITE_ABUSEIPDB_API_KEY=your_key_here
 VITE_SHODAN_API_KEY=your_key_here
-VITE_GOOGLE_SAFE_BROWSING_API_KEY=your_key_here
-VITE_CENSYS_API_ID=your_id_here
-VITE_CENSYS_API_SECRET=your_secret_here
-VITE_BINARYEDGE_API_KEY=your_key_here
-VITE_GREYNOISE_API_KEY=your_key_here
-VITE_IPQS_API_KEY=your_key_here
+
 VITE_HYBRID_ANALYSIS_API_KEY=your_key_here
 VITE_CRIMINALIP_API_KEY=your_key_here
 VITE_METADEFENDER_API_KEY=your_key_here
