@@ -476,3 +476,12 @@ const Index = () => {
               <p className="text-lg text-muted-foreground">Analyzing target...</p>
             </div>
           )}
+
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default Index;
