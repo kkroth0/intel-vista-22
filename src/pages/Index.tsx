@@ -10,6 +10,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Footer } from "@/components/Footer";
 import { HistorySidebar } from "@/components/HistorySidebar";
 import { ExportButton } from "@/components/ExportButton";
+import { ThreatCharts } from "@/components/ThreatCharts";
+import { VendorDataTable } from "@/components/VendorDataTable";
+import { QuickActions } from "@/components/QuickActions";
+import { ViewToggle } from "@/components/ViewToggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { fetchThreatData, fetchThreatDataProgressive } from "@/services/threatApi";
@@ -58,9 +62,11 @@ const Index = () => {
   const [query, setQuery] = useState("");
   const [selectedVendors, setSelectedVendors] = useState<string[]>(ALL_VENDORS);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+<<<<<<< HEAD
   const [data, setData] = useState<ThreatIntelligenceResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"cards" | "table">("cards");
   const { toast } = useToast();
 
   // Load saved preferences and history
@@ -205,6 +211,10 @@ const Index = () => {
     });
   };
 
+  const handleExport = () => {
+    // ExportButton component will handle this
+  };
+
   const getVendorIcon = (name: string) => {
     switch (name) {
       case "VirusTotal": return <Shield className="h-5 w-5 text-primary" />;
@@ -266,7 +276,7 @@ const Index = () => {
   if (!data && !isAnalyzing) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <div className="absolute top-4 right-4 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-2 animate-fade-in">
           <Link to="/vendors">
             <Button variant="outline" size="icon" title="Vendor Directory">
               <BookOpen className="h-4 w-4" />
@@ -282,14 +292,16 @@ const Index = () => {
 
         <div className="flex-1 flex flex-col items-center justify-center p-4">
           <div className="max-w-2xl w-full space-y-8 text-center">
-            <div className="space-y-2">
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight">ThreatSumm4ry</h1>
+            <div className="space-y-2 animate-fade-in">
+              <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                ThreatSumm4ry
+              </h1>
               <p className="text-xl text-muted-foreground">
                 Aggregated analysis from multiple security vendors
               </p>
             </div>
 
-            <div className="p-6 bg-card rounded-xl border shadow-sm">
+            <div className="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 animate-fade-in">
               <SearchForm
                 query={query}
                 setQuery={setQuery}
@@ -303,7 +315,7 @@ const Index = () => {
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground animate-fade-in">
               Make sure to configure your API keys in the .env file
             </p>
           </div>
@@ -318,7 +330,7 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b pb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b pb-6 animate-fade-in">
             <div>
               <h1 className="text-3xl font-bold">ThreatSumm4ry Dashboard</h1>
               <p className="text-sm text-muted-foreground mt-1">{selectedVendors.length} vendors enabled</p>
@@ -353,7 +365,7 @@ const Index = () => {
           </div>
 
           {error && (
-            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg animate-fade-in">
               <p>Error: {error}</p>
             </div>
           )}
@@ -387,6 +399,14 @@ const Index = () => {
 
           {data && (
             <>
+              <QuickActions
+                data={data}
+                onRefresh={handleSearch}
+                isLoading={isAnalyzing}
+                onCopyLinks={copyVendorLinks}
+                onExport={handleExport}
+              />
+
               <ThreatSummary
                 query={data.query}
                 overallScore={data.overallScore}
@@ -396,53 +416,63 @@ const Index = () => {
                 vendorData={data.vendorData}
               />
 
-              <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
-                {data.vendorData
-                  .sort((a, b) => {
-                    // Define vendor importance tiers
-                    const tier1 = ["VirusTotal", "AbuseIPDB"];
-                    const tier2 = ["Shodan", "AlienVault OTX", "Criminal IP"];
-                    const tier3 = ["Pulsedive", "URLhaus", "ThreatFox", "PhishTank"];
+              <ThreatCharts
+                vendorData={data.vendorData}
+                detections={data.detections}
+                totalVendors={data.totalVendors}
+              />
 
-                    const getTier = (name: string) => {
-                      if (tier1.includes(name)) return 1;
-                      if (tier2.includes(name)) return 2;
-                      if (tier3.includes(name)) return 3;
-                      return 4; // Others
-                    };
-
-                    const tierA = getTier(a.name);
-                    const tierB = getTier(b.name);
-
-                    // Sort by tier first, then alphabetically within tier
-                    if (tierA !== tierB) return tierA - tierB;
-                    return a.name.localeCompare(b.name);
-                  })
-                  .map((vendor) => (
-                    <VendorCard
-                      key={vendor.name}
-                      title={vendor.name}
-                      icon={getVendorIcon(vendor.name)}
-                      externalLink={vendor.link}
-                    >
-                      <VendorContent vendor={vendor} onPivot={onPivot} />
-                    </VendorCard>
-                  ))}
+              <div className="flex items-center justify-between mb-4 animate-fade-in">
+                <h2 className="text-2xl font-bold">Vendor Results</h2>
+                <ViewToggle view={view} onViewChange={setView} />
               </div>
+
+              {view === "table" ? (
+                <VendorDataTable
+                  vendorData={data.vendorData}
+                  getVendorLink={getVendorLink}
+                />
+              ) : (
+                <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+                  {data.vendorData
+                    .sort((a, b) => {
+                      // Define vendor importance tiers
+                      const tier1 = ["VirusTotal", "AbuseIPDB"];
+                      const tier2 = ["Shodan", "AlienVault OTX", "Criminal IP"];
+                      const tier3 = ["Pulsedive", "URLhaus", "ThreatFox", "PhishTank"];
+
+                      const getTier = (name: string) => {
+                        if (tier1.includes(name)) return 1;
+                        if (tier2.includes(name)) return 2;
+                        if (tier3.includes(name)) return 3;
+                        return 4; // Others
+                      };
+
+                      const tierA = getTier(a.name);
+                      const tierB = getTier(b.name);
+
+                      // Sort by tier first, then alphabetically within tier
+                      if (tierA !== tierB) return tierA - tierB;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map((vendor) => (
+                      <VendorCard
+                        key={vendor.name}
+                        title={vendor.name}
+                        icon={getVendorIcon(vendor.name)}
+                        externalLink={vendor.link}
+                      >
+                        <VendorContent vendor={vendor} onPivot={onPivot} />
+                      </VendorCard>
+                    ))}
+                </div>
+              )}
             </>
           )}
 
           {isAnalyzing && (
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
               <p className="text-lg text-muted-foreground">Analyzing target...</p>
             </div>
           )}
-        </div>
-      </div>
-      <Footer />
-    </div>
-  );
-};
-
-export default Index;
