@@ -28,14 +28,40 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Helper to detect query type
+// Helper to detect query type (Strict Validation)
 const detectQueryType = (query) => {
-    if (query.startsWith("http://") || query.startsWith("https://")) return "url";
-    if (/^[a-fA-F0-9]{32}$/.test(query)) return "hash"; // MD5
-    if (/^[a-fA-F0-9]{40}$/.test(query)) return "hash"; // SHA1
-    if (/^[a-fA-F0-9]{64}$/.test(query)) return "hash"; // SHA256
-    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(query)) return "ip";
-    return "domain";
+    if (!query) return "unknown";
+    const trimmed = query.trim();
+
+    // URL
+    if (/^(http|https):\/\/[^ "]+$/.test(trimmed)) return "url";
+
+    // Hash (MD5, SHA1, SHA256)
+    if (/^[a-fA-F0-9]{32}$/.test(trimmed)) return "hash";
+    if (/^[a-fA-F0-9]{40}$/.test(trimmed)) return "hash";
+    if (/^[a-fA-F0-9]{64}$/.test(trimmed)) return "hash";
+
+    // IPv4
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(trimmed)) return "ip";
+
+    // Domain
+    if (/^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(trimmed)) return "domain";
+
+    return "unknown";
 };
+
+// Security Middleware
+const validateRequest = (req, res, next) => {
+    if (req.method === 'POST' && req.body.query) {
+        const type = detectQueryType(req.body.query);
+        if (type === "unknown") {
+            return res.status(400).json({ error: "Invalid query format. Must be a valid IP, Domain, Hash, or URL." });
+        }
+    }
+    next();
+};
+
+app.use(validateRequest);
 
 // Helper to extract quota info
 const sendResponseWithQuota = (res, axiosResponse) => {

@@ -9,7 +9,7 @@ import { VendorFilter } from "@/components/VendorFilter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Footer } from "@/components/Footer";
 import { HistorySidebar } from "@/components/HistorySidebar";
-import { ExportButton } from "@/components/ExportButton";
+
 import { ThreatCharts } from "@/components/ThreatCharts";
 import { VendorDataTable } from "@/components/VendorDataTable";
 import { QuickActions } from "@/components/QuickActions";
@@ -90,9 +90,12 @@ const Index = () => {
     }
   }, []);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query) {
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    const trimmedQuery = query.trim();
+
+    if (!trimmedQuery) {
       toast({
         title: "Error",
         description: "Please enter an IP address, domain, or hash",
@@ -101,11 +104,30 @@ const Index = () => {
       return;
     }
 
+    // Input Validation
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+    const hashRegex = /^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$/;
+    const urlRegex = /^(http|https):\/\/[^ "]+$/;
+
+    if (!ipRegex.test(trimmedQuery) &&
+      !domainRegex.test(trimmedQuery) &&
+      !hashRegex.test(trimmedQuery) &&
+      !urlRegex.test(trimmedQuery)) {
+      toast({
+        title: "Invalid Input",
+        description: "Please enter a valid IP address (e.g. 8.8.8.8), Domain (e.g. google.com), Hash (MD5/SHA1/SHA256), or URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     setError(null);
+
     // Initialize with loading cards for all selected vendors
     setData({
-      query,
+      query: trimmedQuery,
       overallScore: 0,
       threatLevel: "unknown",
       totalVendors: selectedVendors.length,
@@ -118,7 +140,7 @@ const Index = () => {
     });
 
     try {
-      const finalResult = await fetchThreatDataProgressive(query, selectedVendors, (vendorData) => {
+      const finalResult = await fetchThreatDataProgressive(trimmedQuery, selectedVendors, (vendorData) => {
         setData(prev => {
           if (!prev) return null;
           // Replace the loading vendor card with actual data
@@ -211,9 +233,7 @@ const Index = () => {
     });
   };
 
-  const handleExport = () => {
-    // ExportButton component will handle this
-  };
+
 
   const getVendorIcon = (name: string) => {
     switch (name) {
@@ -370,33 +390,6 @@ const Index = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-2 mb-4">
-            {data && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSearch}
-                  disabled={isAnalyzing}
-                  className="gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isAnalyzing ? "animate-spin" : ""}`} />
-                  Re-analyze
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyVendorLinks}
-                  className="gap-2"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy All Vendor Links
-                </Button>
-                <ExportButton data={data} />
-              </>
-            )}
-          </div>
-
           {data && (
             <>
               <QuickActions
@@ -404,7 +397,6 @@ const Index = () => {
                 onRefresh={handleSearch}
                 isLoading={isAnalyzing}
                 onCopyLinks={copyVendorLinks}
-                onExport={handleExport}
               />
 
               <ThreatSummary

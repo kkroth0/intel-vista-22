@@ -298,6 +298,23 @@ const formatVendorData = (vendorName: string, data: any, query: string): any => 
                 "Vulnerabilities": data.vulns ? `${Object.keys(data.vulns).length} CVEs` : "0 CVEs",
                 "Tags": data.tags?.slice(0, 5).join(", ") || "None"
             };
+        case "IP Geolocation":
+            if (data.status === "success") {
+                return {
+                    "Country": `${data.country} (${data.countryCode})`,
+                    "Region": data.regionName || "Unknown",
+                    "City": data.city || "Unknown",
+                    "ZIP Code": data.zip || "N/A",
+                    "Timezone": data.timezone || "Unknown",
+                    "ISP": data.isp || "Unknown",
+                    "Organization": data.org || "Unknown",
+                    "AS": data.as || "Unknown",
+                    "Proxy/VPN": data.proxy ? "Yes ⚠️" : "No",
+                    "Hosting": data.hosting ? "Yes" : "No",
+                    "Mobile": data.mobile ? "Yes" : "No",
+                };
+            }
+            return { "Status": data.message || "No geolocation data available" };
         default:
             return data;
     }
@@ -445,12 +462,70 @@ export const fetchThreatData = async (query: string, selectedVendors?: string[])
         .filter(vendor => vendorMap[vendor]) // Ensure vendor exists in map
         .map(vendor => vendorMap[vendor]());
 
+
     const results = await Promise.all(fetchPromises);
 
+    // Important vendor detection indicators
+    const IMPORTANT_AV_VENDORS = [
+        'Microsoft', 'Kaspersky', 'Bitdefender', 'ESET-NOD32', 'Avira',
+        'Sophos', 'McAfee', 'Symantec', 'TrendMicro', 'F-Secure',
+        'Fortinet', 'Palo Alto Networks', 'CrowdStrike'
+    ];
+
+    let isMalicious = false;
     let maliciousCount = 0;
     let totalChecked = 0;
+    let maliciousReasons: string[] = [];
 
+    // Check VirusTotal first (high priority)
+    const virusTotal = results.find(v => v.name === "VirusTotal");
+    if (virusTotal && !virusTotal.error && virusTotal.data) {
+        const vtMalicious = virusTotal.data["Malicious"] || 0;
+        const vtAllVendors = virusTotal.data["All Vendors"];
+
+        // Auto-malicious if >3 detections
+        if (vtMalicious > 3) {
+            isMalicious = true;
+            maliciousReasons.push(`VirusTotal: ${vtMalicious} detections`);
+        }
+
+        // Auto-malicious if important AV vendors detected it
+        if (Array.isArray(vtAllVendors)) {
+            const importantDetections = vtAllVendors.filter((v: any) =>
+                v.category === 'malicious' && IMPORTANT_AV_VENDORS.some(av => v.engine.includes(av))
+            );
+            if (importantDetections.length > 0) {
+                isMalicious = true;
+                maliciousReasons.push(`VirusTotal: Detected by ${importantDetections.map((v: any) => v.engine).join(', ')}`);
+            }
+        }
+
+        // Count VT as checked
+        if (vtMalicious > 0) maliciousCount++;
+        totalChecked++;
+    }
+
+    // Check AbuseIPDB (high priority)
+    const abuse = results.find(v => v.name === "AbuseIPDB");
+    if (abuse && !abuse.error && abuse.data["Abuse Confidence Score"]) {
+        const abuseScore = parseInt(abuse.data["Abuse Confidence Score"] || "0");
+
+        // Auto-malicious if 100% confidence
+        if (abuseScore === 100) {
+            isMalicious = true;
+            maliciousReasons.push(`AbuseIPDB: 100% confidence (${abuse.data["Total Reports"]} reports)`);
+        }
+
+        // Count as malicious if >50%
+        if (abuseScore > 50) maliciousCount++;
+        totalChecked++;
+    }
+
+    // Check other vendors
     results.forEach(vendor => {
+        // Skip VT and AbuseIPDB (already processed)
+        if (vendor.name === "VirusTotal" || vendor.name === "AbuseIPDB") return;
+
         if (vendor.error || Object.keys(vendor.data).length === 0) return;
 
         const status = vendor.data["Status"];
@@ -464,17 +539,19 @@ export const fetchThreatData = async (query: string, selectedVendors?: string[])
         }
     });
 
-    const abuse = results.find(v => v.name === "AbuseIPDB");
-    if (abuse && abuse.data["Abuse Confidence Score"]) {
-        if (parseInt(abuse.data["Abuse Confidence Score"] || "0") > 50) maliciousCount++;
-        totalChecked++;
-    }
-
-    const overallScore = totalChecked > 0 ? Math.round((maliciousCount / totalChecked) * 100) : 0;
+    // Calculate score and threat level
+    let overallScore = totalChecked > 0 ? Math.round((maliciousCount / totalChecked) * 100) : 0;
     let threatLevel: "safe" | "suspicious" | "malicious" | "unknown" = "unknown";
-    if (overallScore > 70) threatLevel = "malicious";
-    else if (overallScore > 30) threatLevel = "suspicious";
-    else if (totalChecked > 0) threatLevel = "safe";
+
+    // Override based on important detections
+    if (isMalicious) {
+        threatLevel = "malicious";
+        overallScore = Math.max(overallScore, 75); // Ensure score reflects severity
+    } else {
+        if (overallScore > 70) threatLevel = "malicious";
+        else if (overallScore > 30) threatLevel = "suspicious";
+        else if (totalChecked > 0) threatLevel = "safe";
+    }
 
     return {
         query,
@@ -546,12 +623,65 @@ export const fetchThreatDataProgressive = async (
 
     const results = await Promise.all(fetchPromises);
 
-    // Calculate scores (same logic as above)
+    // Important vendor detection indicators (same as fetchThreatData)
+    const IMPORTANT_AV_VENDORS = [
+        'Microsoft', 'Kaspersky', 'Bitdefender', 'ESET-NOD32', 'Avira',
+        'Sophos', 'McAfee', 'Symantec', 'TrendMicro', 'F-Secure',
+        'Fortinet', 'Palo Alto Networks', 'CrowdStrike'
+    ];
+
+    let isMalicious = false;
     let maliciousCount = 0;
     let totalChecked = 0;
 
+    // Check VirusTotal first (high priority)
+    const virusTotal = results.find(v => v.name === "VirusTotal");
+    if (virusTotal && !virusTotal.error && virusTotal.data) {
+        const vtMalicious = virusTotal.data["Malicious"] || 0;
+        const vtAllVendors = virusTotal.data["All Vendors"];
+
+        // Auto-malicious if >3 detections
+        if (vtMalicious > 3) {
+            isMalicious = true;
+        }
+
+        // Auto-malicious if important AV vendors detected it
+        if (Array.isArray(vtAllVendors)) {
+            const importantDetections = vtAllVendors.filter((v: any) =>
+                v.category === 'malicious' && IMPORTANT_AV_VENDORS.some(av => v.engine.includes(av))
+            );
+            if (importantDetections.length > 0) {
+                isMalicious = true;
+            }
+        }
+
+        // Count VT as checked
+        if (vtMalicious > 0) maliciousCount++;
+        totalChecked++;
+    }
+
+    // Check AbuseIPDB (high priority)
+    const abuse = results.find(v => v.name === "AbuseIPDB");
+    if (abuse && !abuse.error && abuse.data["Abuse Confidence Score"]) {
+        const abuseScore = parseInt(abuse.data["Abuse Confidence Score"] || "0");
+
+        // Auto-malicious if 100% confidence
+        if (abuseScore === 100) {
+            isMalicious = true;
+        }
+
+        // Count as malicious if >50%
+        if (abuseScore > 50) maliciousCount++;
+        totalChecked++;
+    }
+
+    // Check other vendors
     results.forEach(vendor => {
+        // Skip VT and AbuseIPDB (already processed)
+        if (vendor.name === "VirusTotal" || vendor.name === "AbuseIPDB") return;
+
         if (vendor.error || Object.keys(vendor.data).length === 0) return;
+
         const status = vendor.data["Status"];
         if (status && typeof status === "string") {
             totalChecked++;
@@ -563,17 +693,19 @@ export const fetchThreatDataProgressive = async (
         }
     });
 
-    const abuse = results.find(v => v.name === "AbuseIPDB");
-    if (abuse && abuse.data["Abuse Confidence Score"]) {
-        if (parseInt(abuse.data["Abuse Confidence Score"] || "0") > 50) maliciousCount++;
-        totalChecked++;
-    }
-
-    const overallScore = totalChecked > 0 ? Math.round((maliciousCount / totalChecked) * 100) : 0;
+    // Calculate score and threat level
+    let overallScore = totalChecked > 0 ? Math.round((maliciousCount / totalChecked) * 100) : 0;
     let threatLevel: "safe" | "suspicious" | "malicious" | "unknown" = "unknown";
-    if (overallScore > 70) threatLevel = "malicious";
-    else if (overallScore > 30) threatLevel = "suspicious";
-    else if (totalChecked > 0) threatLevel = "safe";
+
+    // Override based on important detections
+    if (isMalicious) {
+        threatLevel = "malicious";
+        overallScore = Math.max(overallScore, 75); // Ensure score reflects severity
+    } else {
+        if (overallScore > 70) threatLevel = "malicious";
+        else if (overallScore > 30) threatLevel = "suspicious";
+        else if (totalChecked > 0) threatLevel = "safe";
+    }
 
     return {
         query,
