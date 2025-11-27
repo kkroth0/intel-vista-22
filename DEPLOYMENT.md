@@ -191,6 +191,11 @@ npm run deploy
    - Render will build the frontend, install backend dependencies, and start the Express server.
    - The Express server is configured to serve the static frontend files from `dist`.
 
+> [!IMPORTANT]
+> **Build Troubleshooting:**
+> If you encounter `sh: 1: vite: not found` during deployment, it's because `vite` is in `devDependencies` and Render skips them in production mode.
+> We have moved `vite` and other build tools to `dependencies` in `package.json` to fix this. Ensure your `package.json` reflects this change.
+
 **Pros:**
 - ✅ Free tier available
 - ✅ Hosted backend for secure API calls
