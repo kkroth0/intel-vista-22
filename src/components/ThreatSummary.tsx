@@ -4,6 +4,7 @@ import { ThreatBadge } from "./ThreatBadge";
 import { Copy, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { VendorData } from "@/types/threat-intelligence";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ThreatSummaryProps {
   query: string;
@@ -16,6 +17,7 @@ interface ThreatSummaryProps {
 
 export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, detections, vendorData = [] }: ThreatSummaryProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const formatVendorData = (vendor: VendorData): string => {
     let text = `\n${vendor.name}\n${'='.repeat(vendor.name.length)}\n`;
@@ -50,15 +52,15 @@ export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, 
 
     navigator.clipboard.writeText(fullReport);
     toast({
-      title: "Copied to clipboard",
-      description: "Full report has been copied successfully",
+      title: t('copiedToClipboard'),
+      description: t('reportCopied'),
     });
   };
 
   const handleExport = () => {
     toast({
-      title: "Export initiated",
-      description: "Report will be downloaded shortly",
+      title: t('exportInitiated'),
+      description: t('exportDesc'),
     });
   };
 
@@ -66,15 +68,15 @@ export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, 
     <Card className="border-2">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Threat Intelligence Summary</span>
+          <span>{t('threatSummary')}</span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleCopy}>
               <Copy className="h-4 w-4 mr-2" />
-              Copy
+              {t('copy')}
             </Button>
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              Export
+              {t('export')}
             </Button>
           </div>
         </CardTitle>
@@ -82,19 +84,19 @@ export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, 
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Query</p>
+            <p className="text-sm text-muted-foreground mb-1">{t('query')}</p>
             <p className="font-mono font-semibold text-lg">{query}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Overall Score</p>
+            <p className="text-sm text-muted-foreground mb-1">{t('overallScore')}</p>
             <p className="text-3xl font-bold">{overallScore}/100</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Threat Level</p>
+            <p className="text-sm text-muted-foreground mb-1">{t('threatLevel')}</p>
             <ThreatBadge level={threatLevel} className="text-sm px-3 py-1" />
           </div>
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Detections</p>
+            <p className="text-sm text-muted-foreground mb-1">{t('detections')}</p>
             <p className="text-3xl font-bold">
               {detections}<span className="text-lg text-muted-foreground">/{totalVendors}</span>
             </p>

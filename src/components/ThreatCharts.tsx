@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { VendorData } from "@/types/threat-intelligence";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ThreatChartsProps {
   vendorData: VendorData[];
@@ -9,6 +10,8 @@ interface ThreatChartsProps {
 }
 
 export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatChartsProps) => {
+  const { t } = useLanguage();
+
   // Threat Category Breakdown
   const getCategoryBreakdown = () => {
     const categories = {
@@ -46,11 +49,11 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
     });
 
     return [
-      { name: "Malware", value: categories.Malware, color: "#ef4444" },
-      { name: "Abuse", value: categories.Abuse, color: "#f97316" },
-      { name: "Phishing", value: categories.Phishing, color: "#eab308" },
-      { name: "Suspicious", value: categories.Suspicious, color: "#3b82f6" },
-      { name: "Clean", value: categories.Clean, color: "hsl(var(--primary))" },
+      { name: t('malware'), value: categories.Malware, color: "#ef4444" },
+      { name: t('abuse'), value: categories.Abuse, color: "#f97316" },
+      { name: t('phishing'), value: categories.Phishing, color: "#eab308" },
+      { name: t('suspicious'), value: categories.Suspicious, color: "#3b82f6" },
+      { name: t('clean'), value: categories.Clean, color: "hsl(var(--primary))" },
     ].filter(cat => cat.value > 0);
   };
 
@@ -103,11 +106,11 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
     });
 
     return [
-      { name: "Recent (24h)", value: timeline["Recent (24h)"], color: "#ef4444" },
-      { name: "This Week", value: timeline["This Week"], color: "#f97316" },
-      { name: "This Month", value: timeline["This Month"], color: "#eab308" },
-      { name: "Older", value: timeline["Older"], color: "hsl(var(--primary))" },
-      { name: "Unknown", value: timeline["Unknown"], color: "#6b7280" },
+      { name: t('recent24h'), value: timeline["Recent (24h)"], color: "#ef4444" },
+      { name: t('thisWeek'), value: timeline["This Week"], color: "#f97316" },
+      { name: t('thisMonth'), value: timeline["This Month"], color: "#eab308" },
+      { name: t('older'), value: timeline["Older"], color: "hsl(var(--primary))" },
+      { name: t('unknown'), value: timeline["Unknown"], color: "#6b7280" },
     ].filter(t => t.value > 0);
   };
 
@@ -122,7 +125,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
       if (parts.length === 2) {
         return {
           score: Math.round((parseInt(parts[0]) / parseInt(parts[1])) * 100),
-          status: data["Status"] || "Unknown"
+          status: data["Status"] || t('unknown')
         };
       }
     }
@@ -139,7 +142,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
     if (data["Fraud Score"]) {
       return {
         score: parseInt(data["Fraud Score"]),
-        status: data["Status"] || "Unknown"
+        status: data["Status"] || t('unknown')
       };
     }
 
@@ -163,7 +166,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
       return { score: 30, status: data["Status"] };
     }
 
-    return { score: 0, status: data["Status"] || "Clean" };
+    return { score: 0, status: data["Status"] || t('clean') };
   };
 
   const vendorScores = vendorData
@@ -187,7 +190,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
       return (
         <div className="bg-popover border text-popover-foreground p-2 rounded shadow-md text-sm">
           <p className="font-semibold">{label}</p>
-          <p>Score: {payload[0].value}/100</p>
+          <p>{t('score')}: {payload[0].value}/100</p>
           <p className="text-muted-foreground">{payload[0].payload.status}</p>
         </div>
       );
@@ -198,7 +201,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
   return (
     <div className="grid gap-4 md:grid-cols-3 animate-fade-in">
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Threat Categories</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('threatCategories')}</h3>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
@@ -221,7 +224,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
       </Card>
 
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Detection Timeline</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('detectionTimeline')}</h3>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
@@ -244,7 +247,7 @@ export const ThreatCharts = ({ vendorData, detections, totalVendors }: ThreatCha
       </Card>
 
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Vendor Threat Scores (Top 10)</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('vendorThreatScores')}</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={vendorScores} layout="vertical" margin={{ left: 20 }}>
             <XAxis type="number" domain={[0, 100]} hide />

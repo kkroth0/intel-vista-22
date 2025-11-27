@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Shield, AlertTriangle, Bug, FileSearch, Globe, Link as LinkIcon, Radar, Database, Eye, Search, Copy, RefreshCw, BookOpen } from "lucide-react";
+import { Shield, AlertTriangle, Bug, FileSearch, Globe, Link as LinkIcon, Radar, Database, Eye, Search, BookOpen } from "lucide-react";
 import { ThreatSummary } from "@/components/ThreatSummary";
 import { VendorCard } from "@/components/VendorCard";
 import { VendorContent } from "@/components/VendorContent";
@@ -9,6 +8,8 @@ import { VendorFilter } from "@/components/VendorFilter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Footer } from "@/components/Footer";
 import { HistorySidebar } from "@/components/HistorySidebar";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { ThreatCharts } from "@/components/ThreatCharts";
 import { VendorDataTable } from "@/components/VendorDataTable";
@@ -16,7 +17,7 @@ import { QuickActions } from "@/components/QuickActions";
 import { ViewToggle } from "@/components/ViewToggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { fetchThreatData, fetchThreatDataProgressive } from "@/services/threatApi";
+import { fetchThreatDataProgressive } from "@/services/threatApi";
 import { useToast } from "@/hooks/use-toast";
 import { ThreatIntelligenceResult } from "@/types/threat-intelligence";
 
@@ -28,27 +29,31 @@ interface SearchFormProps {
   className?: string;
 }
 
-const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "" }: SearchFormProps) => (
-  <form onSubmit={onSubmit} className={`flex gap-2 w-full ${className}`}>
-    <Input
-      placeholder="Enter IP, domain, or hash (e.g., 1.1.1.1, example.com)"
-      value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      className="flex-1"
-    />
-    <Button type="submit" disabled={isLoading}>
-      {isLoading ? "Analyzing..." : <><Search className="mr-2 h-4 w-4" /> Analyze</>}
-    </Button>
-  </form>
-);
+const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "" }: SearchFormProps) => {
+  const { t } = useLanguage();
+
+  return (
+    <form onSubmit={onSubmit} className={`flex gap-2 w-full ${className}`}>
+      <Input
+        placeholder={t('searchPlaceholder')}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="flex-1"
+      />
+      <Button type="submit" disabled={isLoading}>
+        {isLoading ? t('analyzing') : <><Search className="mr-2 h-4 w-4" /> {t('analyze')}</>}
+      </Button>
+    </form>
+  );
+};
 
 const ALL_VENDORS = [
   "IP Geolocation", "WHOIS", "VirusTotal", "AbuseIPDB", "AlienVault OTX",
-  "Shodan", "URLhaus", "ThreatFox", "MalwareBazaar", "Google Safe Browsing",
-  "PhishTank", "Pulsedive", "ThreatCrowd", "Censys", "BinaryEdge",
-  "GreyNoise", "IPQualityScore", "Hybrid Analysis", "CIRCL hashlookup",
+  "Shodan", "URLhaus", "MalwareBazaar", "Google Safe Browsing",
+  "PhishTank", "Pulsedive", "Censys", "BinaryEdge",
+  "Hybrid Analysis", "CIRCL hashlookup",
   "Criminal IP", "MetaDefender", "PhishStats", "Ransomware.live",
-  "IBM X-Force", "Spamhaus", "Blocklist.de", "OpenPhish", "DShield", "Team Cymru"
+  "OpenPhish", "DShield", "Team Cymru"
 ];
 
 interface HistoryItem {
@@ -56,7 +61,6 @@ interface HistoryItem {
   timestamp: number;
   threatLevel: "safe" | "suspicious" | "malicious" | "unknown";
 }
-
 
 const Index = () => {
   const [query, setQuery] = useState("");
@@ -68,6 +72,7 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"cards" | "table">("cards");
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Load saved preferences and history
   useEffect(() => {
@@ -97,8 +102,8 @@ const Index = () => {
 
     if (!trimmedQuery) {
       toast({
-        title: "Error",
-        description: "Please enter an IP address, domain, or hash",
+        title: t('error'),
+        description: t('inputRequired'),
         variant: "destructive",
       });
       return;
@@ -115,8 +120,8 @@ const Index = () => {
       !hashRegex.test(trimmedQuery) &&
       !urlRegex.test(trimmedQuery)) {
       toast({
-        title: "Invalid Input",
-        description: "Please enter a valid IP address (e.g. 8.8.8.8), Domain (e.g. google.com), Hash (MD5/SHA1/SHA256), or URL.",
+        title: t('invalidInput'),
+        description: t('inputRequired'),
         variant: "destructive",
       });
       return;
@@ -170,7 +175,7 @@ const Index = () => {
       console.error("Analysis error:", error);
       setError("Failed to fetch threat data");
       toast({
-        title: "Error",
+        title: t('error'),
         description: "Failed to fetch threat data",
         variant: "destructive",
       });
@@ -204,14 +209,10 @@ const Index = () => {
       urls.push(`AlienVault OTX: https://otx.alienvault.com/indicator/ip/${searchQuery}`);
       urls.push(`Shodan: https://www.shodan.io/host/${searchQuery}`);
       urls.push(`Censys: https://search.censys.io/hosts/${searchQuery}`);
-      urls.push(`GreyNoise: https://viz.greynoise.io/ip/${searchQuery}`);
-      urls.push(`ThreatCrowd: https://www.threatcrowd.org/ip.php?ip=${searchQuery}`);
-      urls.push(`IPQualityScore: https://www.ipqualityscore.com/free-ip-lookup-proxy-vpn-test/lookup/${searchQuery}`);
       urls.push(`Criminal IP: https://www.criminalip.io/asset/report/${searchQuery}`);
     } else if (type === "domain") {
       urls.push(`VirusTotal: https://www.virustotal.com/gui/domain/${searchQuery}`);
       urls.push(`AlienVault OTX: https://otx.alienvault.com/indicator/domain/${searchQuery}`);
-      urls.push(`ThreatCrowd: https://www.threatcrowd.org/domain.php?domain=${searchQuery}`);
       urls.push(`URLhaus: https://urlhaus.abuse.ch/browse.php?search=${searchQuery}`);
       urls.push(`PhishStats: https://phishstats.info/#/search?url=${searchQuery}`);
     } else if (type === "hash") {
@@ -228,12 +229,10 @@ const Index = () => {
     const links = generateVendorUrls(query);
     navigator.clipboard.writeText(links);
     toast({
-      title: "Copied!",
+      title: t('linksCopied'),
       description: `${links.split("\n\n").length} vendor links copied to clipboard`,
     });
   };
-
-
 
   const getVendorIcon = (name: string) => {
     switch (name) {
@@ -242,16 +241,12 @@ const Index = () => {
       case "AlienVault OTX": return <Eye className="h-5 w-5 text-primary" />;
       case "Shodan": return <Radar className="h-5 w-5 text-primary" />;
       case "URLhaus": return <LinkIcon className="h-5 w-5 text-primary" />;
-      case "ThreatFox": return <Database className="h-5 w-5 text-primary" />;
       case "MalwareBazaar": return <Bug className="h-5 w-5 text-primary" />;
       case "Google Safe Browsing": return <Shield className="h-5 w-5 text-primary" />;
       case "PhishTank": return <LinkIcon className="h-5 w-5 text-primary" />;
       case "Pulsedive": return <Radar className="h-5 w-5 text-primary" />;
-      case "ThreatCrowd": return <Eye className="h-5 w-5 text-primary" />;
       case "Censys": return <Globe className="h-5 w-5 text-primary" />;
       case "BinaryEdge": return <FileSearch className="h-5 w-5 text-primary" />;
-      case "GreyNoise": return <Radar className="h-5 w-5 text-primary" />;
-      case "IPQualityScore": return <Shield className="h-5 w-5 text-primary" />;
       case "Hybrid Analysis": return <Bug className="h-5 w-5 text-primary" />;
       case "CIRCL hashlookup": return <Database className="h-5 w-5 text-primary" />;
       case "Criminal IP": return <AlertTriangle className="h-5 w-5 text-primary" />;
@@ -271,16 +266,12 @@ const Index = () => {
       case "AlienVault OTX": return "https://otx.alienvault.com";
       case "Shodan": return "https://shodan.io";
       case "URLhaus": return "https://urlhaus.abuse.ch";
-      case "ThreatFox": return "https://threatfox.abuse.ch";
       case "MalwareBazaar": return "https://bazaar.abuse.ch";
       case "Google Safe Browsing": return "https://safebrowsing.google.com";
       case "PhishTank": return "https://phishtank.com";
       case "Pulsedive": return "https://pulsedive.com";
-      case "ThreatCrowd": return "https://threatcrowd.org";
       case "Censys": return "https://censys.io";
       case "BinaryEdge": return "https://binaryedge.io";
-      case "GreyNoise": return "https://greynoise.io";
-      case "IPQualityScore": return "https://ipqualityscore.com";
       case "Hybrid Analysis": return "https://hybrid-analysis.com";
       case "CIRCL hashlookup": return "https://hashlookup.circl.lu";
       case "Criminal IP": return "https://criminalip.io";
@@ -307,6 +298,7 @@ const Index = () => {
             onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
             onClear={() => { setHistory([]); localStorage.removeItem("searchHistory"); }}
           />
+          <LanguageToggle />
           <ThemeToggle />
         </div>
 
@@ -314,10 +306,10 @@ const Index = () => {
           <div className="max-w-2xl w-full space-y-8 text-center">
             <div className="space-y-2 animate-fade-in">
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                ThreatSumm4ry
+                {t('appName')}
               </h1>
               <p className="text-xl text-muted-foreground">
-                Aggregated analysis from multiple security vendors
+                {t('dashboardTitle')}
               </p>
             </div>
 
@@ -331,7 +323,7 @@ const Index = () => {
               />
               <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Shield className="h-4 w-4" />
-                <span>Enter an IP address, domain, or hash to start analysis</span>
+                <span>{t('inputRequired')}</span>
               </div>
             </div>
 
@@ -350,43 +342,66 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b pb-6 animate-fade-in">
-            <div>
-              <h1 className="text-3xl font-bold">ThreatSumm4ry Dashboard</h1>
-              <p className="text-sm text-muted-foreground mt-1">{selectedVendors.length} vendors enabled</p>
+          {/* New Header Design */}
+          <div className="flex flex-col gap-6 mb-8 animate-fade-in">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  {t('appName')}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedVendors.length} {t('vendorsEnabled')}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border">
+                <Link to="/vendors">
+                  <Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground hover:bg-background shadow-none">
+                    <BookOpen className="h-4 w-4" />
+                    {t('vendors')}
+                  </Button>
+                </Link>
+                <div className="w-px h-4 bg-border" />
+                <Link to="/dnsbl">
+                  <Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground hover:bg-background shadow-none">
+                    <Shield className="h-4 w-4" />
+                    {t('dnsblCheck')}
+                  </Button>
+                </Link>
+              </div>
             </div>
 
-            <div className="flex gap-2 items-center flex-wrap">
-              <VendorFilter
-                selectedVendors={selectedVendors}
-                onVendorsChange={setSelectedVendors}
-              />
-              <Link to="/vendors">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Vendors
-                </Button>
-              </Link>
-              <HistorySidebar
-                history={history}
-                onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
-                onClear={() => { setHistory([]); localStorage.removeItem("searchHistory"); }}
-              />
-              <ThemeToggle />
-              <div className="w-full md:w-auto md:min-w-[400px]">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
+              <div className="flex-1 w-full md:w-auto">
                 <SearchForm
                   query={query}
                   setQuery={setQuery}
                   onSubmit={handleSearch}
                   isLoading={isAnalyzing}
+                  className="w-full"
                 />
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                <div className="h-8 w-px bg-border hidden md:block mx-2" />
+                <VendorFilter
+                  selectedVendors={selectedVendors}
+                  onVendorsChange={setSelectedVendors}
+                />
+                <HistorySidebar
+                  history={history}
+                  onSelect={(q) => { setQuery(q); setTimeout(() => document.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100); }}
+                  onClear={() => { setHistory([]); localStorage.removeItem("searchHistory"); }}
+                />
+                <LanguageToggle />
+                <ThemeToggle />
               </div>
             </div>
           </div>
 
           {error && (
             <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg animate-fade-in">
-              <p>Error: {error}</p>
+              <p>{t('error')}: {error}</p>
             </div>
           )}
 
@@ -415,7 +430,7 @@ const Index = () => {
               />
 
               <div className="flex items-center justify-between mb-4 animate-fade-in">
-                <h2 className="text-2xl font-bold">Vendor Results</h2>
+                <h2 className="text-2xl font-bold">{t('vendorResults')}</h2>
                 <ViewToggle view={view} onViewChange={setView} />
               </div>
 
@@ -431,7 +446,7 @@ const Index = () => {
                       // Define vendor importance tiers
                       const tier1 = ["VirusTotal", "AbuseIPDB"];
                       const tier2 = ["Shodan", "AlienVault OTX", "Criminal IP"];
-                      const tier3 = ["Pulsedive", "URLhaus", "ThreatFox", "PhishTank"];
+                      const tier3 = ["Pulsedive", "URLhaus", "PhishTank"];
 
                       const getTier = (name: string) => {
                         if (tier1.includes(name)) return 1;
@@ -465,7 +480,7 @@ const Index = () => {
           {isAnalyzing && (
             <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-              <p className="text-lg text-muted-foreground">Analyzing target...</p>
+              <p className="text-lg text-muted-foreground">{t('analyzing')}</p>
             </div>
           )}
 

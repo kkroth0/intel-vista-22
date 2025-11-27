@@ -29,25 +29,7 @@ export const VENDOR_IOC_SUPPORT: Record<string, ('ip' | 'domain' | 'hash' | 'url
     "AlienVault OTX": ['ip', 'domain', 'hash'],
     "Shodan": ['ip'],
     "URLhaus": ['url', 'domain'],
-    "ThreatFox": ['ip', 'domain', 'hash'],
-    "MalwareBazaar": ['hash'],
-    "Google Safe Browsing": ['url', 'domain'],
-    "PhishTank": ['url', 'domain'],
-    "Pulsedive": ['ip', 'domain', 'hash'],
-    "ThreatCrowd": ['ip', 'domain'],
-    "Censys": ['ip'],
-    "BinaryEdge": ['ip'],
-    "GreyNoise": ['ip'],
-    "IPQualityScore": ['ip'],
-    "Hybrid Analysis": ['hash'],
-    "CIRCL hashlookup": ['hash'],
-    "Criminal IP": ['ip', 'domain'],
-    "MetaDefender": ['ip', 'hash'],
-    "PhishStats": ['url', 'domain'],
-    "Ransomware.live": ['domain'],
-    "IBM X-Force": ['ip', 'domain', 'hash'],
-    "Spamhaus": ['ip', 'domain'],
-    "Blocklist.de": ['ip'],
+
 };
 
 // Formatting logic moved from individual fetch functions
@@ -388,28 +370,36 @@ export const fetchAbuseIPDBData = (query: string) => fetchFromBackend('abuseipdb
 export const fetchAlienVaultData = (query: string) => fetchFromBackend('alienvault', query, "AlienVault OTX");
 export const fetchShodanData = (query: string) => fetchFromBackend('shodan', query, "Shodan");
 export const fetchURLhausData = (query: string) => fetchFromBackend('urlhaus', query, "URLhaus");
-export const fetchThreatFoxData = (query: string) => fetchFromBackend('threatfox', query, "ThreatFox");
+
 export const fetchMalwareBazaarData = (query: string) => fetchFromBackend('malwarebazaar', query, "MalwareBazaar");
 export const fetchGoogleSafeBrowsingData = (query: string) => fetchFromBackend('googlesafebrowsing', query, "Google Safe Browsing");
 export const fetchPhishTankData = (query: string) => fetchFromBackend('phishtank', query, "PhishTank");
 export const fetchPulsediveData = (query: string) => fetchFromBackend('pulsedive', query, "Pulsedive");
-export const fetchThreatCrowdData = (query: string) => fetchFromBackend('threatcrowd', query, "ThreatCrowd");
 export const fetchCensysData = (query: string) => fetchFromBackend('censys', query, "Censys");
 export const fetchBinaryEdgeData = (query: string) => fetchFromBackend('binaryedge', query, "BinaryEdge");
-export const fetchGreyNoiseData = (query: string) => fetchFromBackend('greynoise', query, "GreyNoise");
-export const fetchIPQSData = (query: string) => fetchFromBackend('ipqs', query, "IPQualityScore");
 export const fetchHybridAnalysisData = (query: string) => fetchFromBackend('hybridanalysis', query, "Hybrid Analysis");
 export const fetchCIRCLData = (query: string) => fetchFromBackend('circl', query, "CIRCL hashlookup");
 export const fetchCriminalIPData = (query: string) => fetchFromBackend('criminalip', query, "Criminal IP");
 export const fetchMetaDefenderData = (query: string) => fetchFromBackend('metadefender', query, "MetaDefender");
 export const fetchPhishStatsData = (query: string) => fetchFromBackend('phishstats', query, "PhishStats");
 export const fetchRansomwareLiveData = (query: string) => fetchFromBackend('ransomwarelive', query, "Ransomware.live");
-export const fetchXForceData = (query: string) => fetchFromBackend('xforce', query, "IBM X-Force");
-export const fetchSpamhausData = (query: string) => fetchFromBackend('spamhaus', query, "Spamhaus");
-export const fetchBlocklistDeData = (query: string) => fetchFromBackend('blocklistde', query, "Blocklist.de");
 export const fetchOpenPhishData = (query: string) => fetchFromBackend('openphish', query, "OpenPhish");
 export const fetchDShieldData = (query: string) => fetchFromBackend('dshield', query, "DShield");
 export const fetchTeamCymruData = (query: string) => fetchFromBackend('teamcymru', query, "Team Cymru");
+
+export const checkDNSBL = async (ip: string, provider: string): Promise<{ listed: boolean; addresses?: string[]; status: string; error?: string }> => {
+    try {
+        const response = await fetch('/api/dnsbl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: ip, provider })
+        });
+        if (!response.ok) throw new Error("API Error");
+        return await response.json();
+    } catch (error) {
+        return { listed: false, status: "Error", error: (error as Error).message };
+    }
+};
 
 export const fetchThreatData = async (query: string, selectedVendors?: string[]): Promise<ThreatIntelligenceResult> => {
     // Map vendor names to their fetch functions
@@ -421,25 +411,18 @@ export const fetchThreatData = async (query: string, selectedVendors?: string[])
         "AlienVault OTX": () => fetchAlienVaultData(query),
         "Shodan": () => fetchShodanData(query),
         "URLhaus": () => fetchURLhausData(query),
-        "ThreatFox": () => fetchThreatFoxData(query),
         "MalwareBazaar": () => fetchMalwareBazaarData(query),
         "Google Safe Browsing": () => fetchGoogleSafeBrowsingData(query),
         "PhishTank": () => fetchPhishTankData(query),
         "Pulsedive": () => fetchPulsediveData(query),
-        "ThreatCrowd": () => fetchThreatCrowdData(query),
         "Censys": () => fetchCensysData(query),
         "BinaryEdge": () => fetchBinaryEdgeData(query),
-        "GreyNoise": () => fetchGreyNoiseData(query),
-        "IPQualityScore": () => fetchIPQSData(query),
         "Hybrid Analysis": () => fetchHybridAnalysisData(query),
         "CIRCL hashlookup": () => fetchCIRCLData(query),
         "Criminal IP": () => fetchCriminalIPData(query),
         "MetaDefender": () => fetchMetaDefenderData(query),
         "PhishStats": () => fetchPhishStatsData(query),
         "Ransomware.live": () => fetchRansomwareLiveData(query),
-        "IBM X-Force": () => fetchXForceData(query),
-        "Spamhaus": () => fetchSpamhausData(query),
-        "Blocklist.de": () => fetchBlocklistDeData(query),
         "OpenPhish": () => fetchOpenPhishData(query),
         "DShield": () => fetchDShieldData(query),
         "Team Cymru": () => fetchTeamCymruData(query),
@@ -577,25 +560,18 @@ export const fetchThreatDataProgressive = async (
         "AlienVault OTX": () => fetchAlienVaultData(query),
         "Shodan": () => fetchShodanData(query),
         "URLhaus": () => fetchURLhausData(query),
-        "ThreatFox": () => fetchThreatFoxData(query),
         "MalwareBazaar": () => fetchMalwareBazaarData(query),
         "Google Safe Browsing": () => fetchGoogleSafeBrowsingData(query),
         "PhishTank": () => fetchPhishTankData(query),
         "Pulsedive": () => fetchPulsediveData(query),
-        "ThreatCrowd": () => fetchThreatCrowdData(query),
         "Censys": () => fetchCensysData(query),
         "BinaryEdge": () => fetchBinaryEdgeData(query),
-        "GreyNoise": () => fetchGreyNoiseData(query),
-        "IPQualityScore": () => fetchIPQSData(query),
         "Hybrid Analysis": () => fetchHybridAnalysisData(query),
         "CIRCL hashlookup": () => fetchCIRCLData(query),
         "Criminal IP": () => fetchCriminalIPData(query),
         "MetaDefender": () => fetchMetaDefenderData(query),
         "PhishStats": () => fetchPhishStatsData(query),
         "Ransomware.live": () => fetchRansomwareLiveData(query),
-        "IBM X-Force": () => fetchXForceData(query),
-        "Spamhaus": () => fetchSpamhausData(query),
-        "Blocklist.de": () => fetchBlocklistDeData(query),
         "OpenPhish": () => fetchOpenPhishData(query),
         "DShield": () => fetchDShieldData(query),
         "Team Cymru": () => fetchTeamCymruData(query),

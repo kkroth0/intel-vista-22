@@ -186,19 +186,7 @@ app.post('/api/urlhaus', async (req, res) => {
     }
 });
 
-// ThreatFox
-app.post('/api/threatfox', async (req, res) => {
-    const { query } = req.body;
-    try {
-        const response = await axios.post(`https://threatfox-api.abuse.ch/api/v1/`,
-            { query: "search_ioc", search_term: query },
-            { headers: { "Content-Type": "application/json", "API-KEY": process.env.THREATFOX_API_KEY || "" } }
-        );
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
+
 
 // MalwareBazaar
 app.post('/api/malwarebazaar', async (req, res) => {
@@ -248,25 +236,7 @@ app.post('/api/pulsedive', async (req, res) => {
     }
 });
 
-// ThreatCrowd
-app.post('/api/threatcrowd', async (req, res) => {
-    const { query } = req.body;
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip" && queryType !== "domain") return res.json({ data: { "Status": "IP/Domain only" } });
 
-    try {
-        const endpoint = queryType === "ip"
-            ? `https://www.threatcrowd.org/searchApi/v2/ip/report/?ip=${query}`
-            : `https://www.threatcrowd.org/searchApi/v2/domain/report/?domain=${query}`;
-
-        const response = await axios.get(endpoint, {
-            httpsAgent: new (await import('https')).Agent({ rejectUnauthorized: false })
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 // Censys
 app.post('/api/censys', async (req, res) => {
@@ -429,90 +399,39 @@ app.post('/api/ipgeo', async (req, res) => {
     }
 });
 
-// IBM X-Force Exchange
-app.post('/api/xforce', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.XFORCE_API_KEY || !process.env.XFORCE_API_PASSWORD) return res.status(500).json({ error: "API credentials missing" });
 
-    try {
-        const queryType = detectQueryType(query);
-        let endpoint = "";
 
-        if (queryType === "ip") endpoint = `https://api.xforce.ibmcloud.com/ipr/${query}`;
-        else if (queryType === "domain") endpoint = `https://api.xforce.ibmcloud.com/url/${query}`;
-        else if (queryType === "hash") endpoint = `https://api.xforce.ibmcloud.com/malware/${query}`;
-        else endpoint = `https://api.xforce.ibmcloud.com/url/${query}`;
-
-        const auth = btoa(`${process.env.XFORCE_API_KEY}:${process.env.XFORCE_API_PASSWORD}`);
-        const response = await axios.get(endpoint, {
-            headers: { "Authorization": `Basic ${auth}`, "Accept": "application/json" }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
-
-// Spamhaus (DNS-based lookup)
-app.post('/api/spamhaus', async (req, res) => {
-    const { query } = req.body;
+// Generic DNSBL Endpoint
+app.post('/api/dnsbl', async (req, res) => {
+    const { query, provider } = req.body;
     const queryType = detectQueryType(query);
 
-    try {
-        if (queryType === "ip") {
-            // Simple check using Spamhaus ZEN blocklist via DNS
-            const reversed = query.split('.').reverse().join('.');
-            const dnsQuery = `${reversed}.zen.spamhaus.org`;
+    if (queryType !== "ip") {
+        return res.json({ listed: false, status: "IP only" });
+    }
 
-            // Use a DNS resolution instead of HTTP
-            const dns = await import('dns');
-            dns.promises.resolve4(dnsQuery)
-                .then(addresses => {
-                    res.json({ listed: true, lists: addresses, status: "Listed on Spamhaus" });
-                })
-                .catch(() => {
-                    res.json({ listed: false, status: "Not listed on Spamhaus" });
-                });
-        } else if (queryType === "domain") {
-            // Check DBL
-            const dnsQuery = `${query}.dbl.spamhaus.org`;
-            const dns = await import('dns');
-            dns.promises.resolve4(dnsQuery)
-                .then(addresses => {
-                    res.json({ listed: true, lists: addresses, status: "Listed on Spamhaus DBL" });
-                })
-                .catch(() => {
-                    res.json({ listed: false, status: "Not listed on Spamhaus" });
-                });
-        } else {
-            res.json({ data: { "Status": "IP/Domain only" } });
-        }
+    if (!provider) {
+        return res.status(400).json({ error: "Provider required" });
+    }
+
+    try {
+        const reversed = query.split('.').reverse().join('.');
+        const dnsQuery = `${reversed}.${provider}`;
+
+        const dns = await import('dns');
+        dns.promises.resolve4(dnsQuery)
+            .then(addresses => {
+                res.json({ listed: true, addresses, status: `Listed on ${provider}` });
+            })
+            .catch(() => {
+                res.json({ listed: false, status: "Not listed" });
+            });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Blocklist.de
-app.post('/api/blocklistde', async (req, res) => {
-    const { query } = req.body;
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
 
-    try {
-        const response = await axios.get(`https://api.blocklist.de/api.php?ip=${query}`);
-        // API returns plain text: "attacks: X" or "not found"
-        const data = response.data;
-        const attacks = data.match(/attacks: (\d+)/);
-
-        res.json({
-            listed: attacks !== null,
-            attacks: attacks ? parseInt(attacks[1]) : 0,
-            status: attacks ? `Listed with ${attacks[1]} attacks` : "Not listed"
-        });
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 // OpenPhish
 app.post('/api/openphish', async (req, res) => {
@@ -618,44 +537,9 @@ app.post('/api/binaryedge', async (req, res) => {
     }
 });
 
-// GreyNoise
-app.post('/api/greynoise', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.GREYNOISE_API_KEY) return res.status(500).json({ error: "API Key missing" });
 
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
 
-    try {
-        const response = await axios.get(`https://api.greynoise.io/v3/community/${query}`, {
-            headers: { "key": process.env.GREYNOISE_API_KEY }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
-// IPQualityScore
-app.post('/api/ipqs', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.IPQS_API_KEY) return res.status(500).json({ error: "API Key missing" });
-
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
-
-    try {
-        const response = await axios.get(`https://ipqualityscore.com/api/json/ip/${process.env.IPQS_API_KEY}/${query}`, {
-            params: {
-                strictness: 0,
-                allow_public_access_points: true
-            }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 
 // Serve frontend in production
