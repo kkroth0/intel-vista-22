@@ -41,7 +41,6 @@ const VENDOR_LIST: VendorConfig[] = [
     { name: "MetaDefender", free: false, supportsIP: true, supportsDomain: false, supportsHash: true },
     { name: "PhishStats", free: true, supportsIP: false, supportsDomain: true, supportsHash: false },
     { name: "Ransomware.live", free: true, supportsIP: false, supportsDomain: true, supportsHash: false },
-    { name: "IBM X-Force", free: false, supportsIP: true, supportsDomain: true, supportsHash: true },
     { name: "Spamhaus", free: true, supportsIP: true, supportsDomain: true, supportsHash: false },
     { name: "Blocklist.de", free: true, supportsIP: true, supportsDomain: false, supportsHash: false },
     { name: "OpenPhish", free: true, supportsIP: false, supportsDomain: true, supportsHash: false },

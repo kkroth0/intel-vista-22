@@ -238,24 +238,7 @@ app.post('/api/pulsedive', async (req, res) => {
 
 
 
-// Censys
-app.post('/api/censys', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.CENSYS_API_ID || !process.env.CENSYS_API_SECRET) return res.status(500).json({ error: "API credentials missing" });
 
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
-
-    try {
-        const auth = btoa(`${process.env.CENSYS_API_ID}:${process.env.CENSYS_API_SECRET}`);
-        const response = await axios.get(`https://search.censys.io/api/v2/hosts/${query}`, {
-            headers: { Authorization: `Basic ${auth}` },
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 
 
@@ -519,23 +502,7 @@ app.post('/api/teamcymru', async (req, res) => {
     }
 });
 
-// BinaryEdge
-app.post('/api/binaryedge', async (req, res) => {
-    const { query } = req.body;
-    if (!process.env.BINARYEDGE_API_KEY) return res.status(500).json({ error: "API Key missing" });
 
-    const queryType = detectQueryType(query);
-    if (queryType !== "ip") return res.json({ data: { "Status": "IP only" } });
-
-    try {
-        const response = await axios.get(`https://api.binaryedge.io/v2/query/ip/${query}`, {
-            headers: { "X-Key": process.env.BINARYEDGE_API_KEY }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ error: error.message });
-    }
-});
 
 
 

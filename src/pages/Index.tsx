@@ -50,7 +50,7 @@ const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "" }: Se
 const ALL_VENDORS = [
   "IP Geolocation", "WHOIS", "VirusTotal", "AbuseIPDB", "AlienVault OTX",
   "Shodan", "URLhaus", "MalwareBazaar", "Google Safe Browsing",
-  "PhishTank", "Pulsedive", "Censys", "BinaryEdge",
+  "PhishTank", "Pulsedive",
   "Hybrid Analysis", "CIRCL hashlookup",
   "Criminal IP", "MetaDefender", "PhishStats", "Ransomware.live",
   "OpenPhish", "DShield", "Team Cymru"
@@ -79,9 +79,13 @@ const Index = () => {
     const savedVendors = localStorage.getItem("selectedVendors");
     if (savedVendors) {
       try {
-        setSelectedVendors(JSON.parse(savedVendors));
+        const parsed = JSON.parse(savedVendors);
+        // Filter out vendors that are no longer in ALL_VENDORS
+        const validVendors = parsed.filter((v: string) => ALL_VENDORS.includes(v));
+        setSelectedVendors(validVendors.length > 0 ? validVendors : ALL_VENDORS);
       } catch (e) {
         console.error("Failed to parse saved vendors", e);
+        setSelectedVendors(ALL_VENDORS);
       }
     }
 
@@ -208,7 +212,6 @@ const Index = () => {
       urls.push(`AbuseIPDB: https://www.abuseipdb.com/check/${searchQuery}`);
       urls.push(`AlienVault OTX: https://otx.alienvault.com/indicator/ip/${searchQuery}`);
       urls.push(`Shodan: https://www.shodan.io/host/${searchQuery}`);
-      urls.push(`Censys: https://search.censys.io/hosts/${searchQuery}`);
       urls.push(`Criminal IP: https://www.criminalip.io/asset/report/${searchQuery}`);
     } else if (type === "domain") {
       urls.push(`VirusTotal: https://www.virustotal.com/gui/domain/${searchQuery}`);
@@ -245,8 +248,6 @@ const Index = () => {
       case "Google Safe Browsing": return <Shield className="h-5 w-5 text-primary" />;
       case "PhishTank": return <LinkIcon className="h-5 w-5 text-primary" />;
       case "Pulsedive": return <Radar className="h-5 w-5 text-primary" />;
-      case "Censys": return <Globe className="h-5 w-5 text-primary" />;
-      case "BinaryEdge": return <FileSearch className="h-5 w-5 text-primary" />;
       case "Hybrid Analysis": return <Bug className="h-5 w-5 text-primary" />;
       case "CIRCL hashlookup": return <Database className="h-5 w-5 text-primary" />;
       case "Criminal IP": return <AlertTriangle className="h-5 w-5 text-primary" />;
@@ -270,8 +271,6 @@ const Index = () => {
       case "Google Safe Browsing": return "https://safebrowsing.google.com";
       case "PhishTank": return "https://phishtank.com";
       case "Pulsedive": return "https://pulsedive.com";
-      case "Censys": return "https://censys.io";
-      case "BinaryEdge": return "https://binaryedge.io";
       case "Hybrid Analysis": return "https://hybrid-analysis.com";
       case "CIRCL hashlookup": return "https://hashlookup.circl.lu";
       case "Criminal IP": return "https://criminalip.io";

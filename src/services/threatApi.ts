@@ -130,15 +130,7 @@ const formatVendorData = (vendorName: string, data: any, query: string): any => 
                 };
             }
             return { "Status": "No data" };
-        case "ThreatFox":
-            if (data.query_status === "ok") {
-                return {
-                    "IOCs Found": data.data?.length || 0,
-                    "Threat Type": data.data?.[0]?.threat_type || "Unknown",
-                    "Malware": data.data?.[0]?.malware_printable || "Unknown",
-                };
-            }
-            return { "Status": "No IOCs found" };
+
         case "MalwareBazaar":
             if (data.query_status === "ok") {
                 return {
@@ -167,37 +159,9 @@ const formatVendorData = (vendorName: string, data: any, query: string): any => 
                 "Threats": Array.isArray(data.threats) ? data.threats.slice(0, 3).map((t: any) => typeof t === 'string' ? t : t.name || t.type || 'Unknown').join(", ") : "None",
                 "Feeds": data.feeds?.length || 0,
             };
-        case "ThreatCrowd":
-            return {
-                "Votes": `Malicious: ${data.votes || 0}`,
-                "Resolutions": data.resolutions?.length || 0,
-                "Hashes": data.hashes?.length || 0,
-            };
-        case "Censys":
-            return {
-                "Services": data.result?.services?.length || 0,
-                "Protocols": data.result?.services?.slice(0, 3).map((s: any) => s.service_name).join(", ") || "Unknown",
-            };
-        case "BinaryEdge":
-            return {
-                "Events": data.events?.length || 0,
-                "Ports": data.events?.slice(0, 5).map((e: any) => e.port).join(", ") || "None",
-            };
-        case "GreyNoise":
-            return {
-                "Classification": data.classification || "Unknown",
-                "Noise": data.noise ? "Yes" : "No",
-                "Riot": data.riot ? "Yes" : "No",
-                "Last Seen": data.last_seen || "Never",
-            };
-        case "IPQualityScore":
-            return {
-                "Fraud Score": `${data.fraud_score}/100`,
-                "Proxy": data.proxy ? "Yes" : "No",
-                "VPN": data.vpn ? "Yes" : "No",
-                "Tor": data.tor ? "Yes" : "No",
-                "Status": data.fraud_score > 75 ? "High Risk" : data.fraud_score > 50 ? "Moderate Risk" : "Low Risk",
-            };
+
+
+
         case "Hybrid Analysis":
             if (Array.isArray(data) && data.length > 0) {
                 return {
@@ -319,20 +283,14 @@ const getVendorLink = (vendorName: string, query: string): string | undefined =>
         case "Google Safe Browsing": return `https://transparencyreport.google.com/safe-browsing/search?url=${encodedQuery}`;
         case "PhishTank": return `https://phishtank.org/`;
         case "Pulsedive": return `https://pulsedive.com/indicator/?ioc=${encodedQuery}`;
-        case "ThreatCrowd": return `https://www.threatcrowd.org/ip.php?ip=${query}`;
-        case "Censys": return `https://search.censys.io/hosts/${query}`;
-        case "BinaryEdge": return `https://app.binaryedge.io/services/query/${query}`;
-        case "GreyNoise": return `https://viz.greynoise.io/ip/${query}`;
-        case "IPQualityScore": return `https://www.ipqualityscore.com/free-ip-lookup-proxy-vpn-test/lookup/${query}`;
+
         case "Hybrid Analysis": return `https://www.hybrid-analysis.com/search?query=${encodedQuery}`;
         case "CIRCL hashlookup": return `https://hashlookup.circl.lu/`;
         case "Criminal IP": return `https://www.criminalip.io/asset/report/${query}`;
         case "MetaDefender": return `https://metadefender.opswat.com/results/ip/${query}`;
         case "PhishStats": return `https://phishstats.info/`;
         case "Ransomware.live": return `https://ransomware.live/`;
-        case "IBM X-Force": return `https://exchange.xforce.ibmcloud.com/ip/${query}`;
-        case "Spamhaus": return `https://check.spamhaus.org/`;
-        case "Blocklist.de": return `http://www.blocklist.de/en/view.html?ip=${query}`;
+
         case "OpenPhish": return `https://openphish.com/`;
         case "DShield": return `https://isc.sans.edu/ipinfo.html?ip=${query}`;
         case "Team Cymru": return `https://team-cymru.com/community-services/ip-asn-mapping/`;
@@ -375,8 +333,7 @@ export const fetchMalwareBazaarData = (query: string) => fetchFromBackend('malwa
 export const fetchGoogleSafeBrowsingData = (query: string) => fetchFromBackend('googlesafebrowsing', query, "Google Safe Browsing");
 export const fetchPhishTankData = (query: string) => fetchFromBackend('phishtank', query, "PhishTank");
 export const fetchPulsediveData = (query: string) => fetchFromBackend('pulsedive', query, "Pulsedive");
-export const fetchCensysData = (query: string) => fetchFromBackend('censys', query, "Censys");
-export const fetchBinaryEdgeData = (query: string) => fetchFromBackend('binaryedge', query, "BinaryEdge");
+
 export const fetchHybridAnalysisData = (query: string) => fetchFromBackend('hybridanalysis', query, "Hybrid Analysis");
 export const fetchCIRCLData = (query: string) => fetchFromBackend('circl', query, "CIRCL hashlookup");
 export const fetchCriminalIPData = (query: string) => fetchFromBackend('criminalip', query, "Criminal IP");
@@ -415,8 +372,7 @@ export const fetchThreatData = async (query: string, selectedVendors?: string[])
         "Google Safe Browsing": () => fetchGoogleSafeBrowsingData(query),
         "PhishTank": () => fetchPhishTankData(query),
         "Pulsedive": () => fetchPulsediveData(query),
-        "Censys": () => fetchCensysData(query),
-        "BinaryEdge": () => fetchBinaryEdgeData(query),
+
         "Hybrid Analysis": () => fetchHybridAnalysisData(query),
         "CIRCL hashlookup": () => fetchCIRCLData(query),
         "Criminal IP": () => fetchCriminalIPData(query),
@@ -564,8 +520,7 @@ export const fetchThreatDataProgressive = async (
         "Google Safe Browsing": () => fetchGoogleSafeBrowsingData(query),
         "PhishTank": () => fetchPhishTankData(query),
         "Pulsedive": () => fetchPulsediveData(query),
-        "Censys": () => fetchCensysData(query),
-        "BinaryEdge": () => fetchBinaryEdgeData(query),
+
         "Hybrid Analysis": () => fetchHybridAnalysisData(query),
         "CIRCL hashlookup": () => fetchCIRCLData(query),
         "Criminal IP": () => fetchCriminalIPData(query),
