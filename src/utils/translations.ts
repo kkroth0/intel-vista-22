@@ -2,8 +2,8 @@ export const translations = {
     en: {
         // General
         appName: "ThreatSumm4ry",
-        dashboardTitle: "ThreatSumm4ry Dashboard",
-        vendorsEnabled: "vendors enabled",
+        dashboardTitle: "Advanced Threat Intelligence Platform",
+        vendorsEnabled: "active intelligence sources",
         vendors: "Vendors",
         dnsblCheck: "DNSBL Check",
         back: "Back",
@@ -12,8 +12,8 @@ export const translations = {
 
         // Search / Input
         searchPlaceholder: "Enter IP, domain, or hash (e.g., 1.1.1.1, example.com)",
-        analyze: "Analyze",
-        analyzing: "Analyzing...",
+        analyze: "Analyze Target",
+        analyzing: "Analyzing Target...",
         scan: "Scan",
         scanning: "Scanning...",
         enterIp: "Enter IP address (e.g. 1.2.3.4)",
@@ -23,14 +23,20 @@ export const translations = {
 
         // Dashboard
         threatSummary: "Threat Intelligence Summary",
-        overallScore: "Overall Score",
+        overallScore: "Overall Risk Score",
         threatLevel: "Threat Level",
         detections: "Detections",
-        vendorResults: "Vendor Results",
+        vendorResults: "Vendor Analysis Results",
         quickActions: "Quick Actions",
-        refresh: "Refresh",
-        copyLinks: "Copy Links",
+        refresh: "Refresh Data",
+        copyLinks: "Copy Vendor Links",
+        copySummary: "Copy Summary",
         linksCopied: "Vendor links copied to clipboard",
+        copied: "Copied",
+        summaryCopied: "Summary copied to clipboard",
+        exportSuccess: "Export Successful",
+        pdfDownloaded: "PDF report downloaded",
+        jsonDownloaded: "JSON report downloaded",
 
         // DNSBL Page
         dnsblTitle: "DNSBL Checker",
@@ -73,6 +79,7 @@ export const translations = {
 
         // Quick Actions
         share: "Share",
+        shareReport: "Share Report",
         downloadPdf: "Download PDF",
         downloadJson: "Download JSON",
         refreshing: "Refreshing...",
@@ -161,6 +168,7 @@ export const translations = {
 
         // Quick Actions
         share: "Compartilhar",
+        shareReport: "Compartilhar Relatório",
         downloadPdf: "Baixar PDF",
         downloadJson: "Baixar JSON",
         refreshing: "Atualizando...",
@@ -174,6 +182,12 @@ export const translations = {
         page: "Página",
         of: "de",
         generatedBy: "Gerado por",
+        copySummary: "Copiar Resumo",
+        copied: "Copiado",
+        summaryCopied: "Resumo copiado para a área de transferência",
+        exportSuccess: "Exportação com Sucesso",
+        pdfDownloaded: "Relatório PDF baixado",
+        jsonDownloaded: "Relatório JSON baixado",
     }
 };
 

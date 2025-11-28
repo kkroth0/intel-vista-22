@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Search, Shield, AlertTriangle, CheckCircle, RotateCw, Home } from "lucide-react";
+import { ArrowLeft, Search, Shield, AlertTriangle, CheckCircle, RotateCw, Home, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,6 +117,35 @@ const DnsblCheck = () => {
         return a.provider.localeCompare(b.provider);
     });
 
+    const handleShare = () => {
+        const listed = results.filter(r => r.listed).map(r => r.provider);
+        const cleanCount = results.filter(r => !r.listed && !r.loading).length;
+
+        const text = `DNSBL Check for ${query}\n` +
+            `Listed in ${listed.length} blocklists\n` +
+            `Clean in ${cleanCount} blocklists\n\n` +
+            (listed.length > 0 ? `Listed in:\n${listed.join('\n')}` : "Clean in all checked lists.");
+
+        if (navigator.share) {
+            navigator.share({
+                title: `DNSBL Report - ${query}`,
+                text: text,
+            }).catch(() => {
+                navigator.clipboard.writeText(text);
+                toast({
+                    title: t('copied'),
+                    description: t('shareLinkCopied'),
+                });
+            });
+        } else {
+            navigator.clipboard.writeText(text);
+            toast({
+                title: t('copied'),
+                description: t('shareLinkCopied'),
+            });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background flex flex-col">
             {/* Improved Header */}
@@ -173,62 +202,57 @@ const DnsblCheck = () => {
 
                     {results.length > 0 && (
                         <div className="space-y-6 animate-fade-in">
-                            <div className="flex items-center justify-center gap-6 text-center">
-                                <div className={`p-6 rounded-xl border shadow-sm transition-colors ${listedCount > 0 ? 'bg-destructive/10 border-destructive/20' : 'bg-card'}`}>
-                                    <div className={`text-4xl font-bold ${listedCount > 0 ? 'text-destructive' : 'text-foreground'}`}>{listedCount}</div>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-center">
+                                <div className={`p-4 rounded-xl border shadow-sm transition-colors w-full sm:w-auto min-w-[150px] ${listedCount > 0 ? 'bg-destructive/10 border-destructive/20' : 'bg-card'}`}>
+                                    <div className={`text-3xl font-bold ${listedCount > 0 ? 'text-destructive' : 'text-foreground'}`}>{listedCount}</div>
                                     <div className="text-sm font-medium text-muted-foreground mt-1">{t('listed')}</div>
                                 </div>
-                                <div className="p-6 rounded-xl bg-card border shadow-sm">
-                                    <div className="text-4xl font-bold text-primary">{totalChecked}</div>
+                                <div className="p-4 rounded-xl bg-card border shadow-sm w-full sm:w-auto min-w-[150px]">
+                                    <div className="text-3xl font-bold text-primary">{totalChecked}</div>
                                     <div className="text-sm font-medium text-muted-foreground mt-1">{t('checked')}</div>
                                 </div>
+                                <Button variant="outline" className="h-auto py-4 px-6 flex-col gap-1 min-w-[100px]" onClick={handleShare}>
+                                    <Share2 className="h-5 w-5 mb-1" />
+                                    <span className="text-xs font-medium">{t('shareReport')}</span>
+                                </Button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                 {sortedResults.map((result) => (
-                                    <Card key={result.provider} className={`transition-all duration-200 ${result.listed ? 'border-destructive/50 bg-destructive/5 shadow-md scale-[1.02]' : 'border-border hover:border-primary/30 hover:bg-accent/5'}`}>
-                                        <CardHeader className="pb-2">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-base font-medium truncate" title={result.provider}>
+                                    <Card key={result.provider} className={`transition-all duration-200 ${result.listed ? 'border-destructive/50 bg-destructive/5 shadow-md scale-[1.02] z-10' : 'border-border hover:border-primary/30 hover:bg-accent/5'}`}>
+                                        <CardHeader className="p-3 pb-1">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <CardTitle className="text-xs font-medium truncate w-full" title={result.provider}>
                                                     {result.provider}
                                                 </CardTitle>
                                                 {result.loading ? (
-                                                    <RotateCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                    <RotateCw className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
                                                 ) : result.listed ? (
-                                                    <Badge variant="destructive" className="gap-1">
-                                                        <AlertTriangle className="h-3 w-3" />
-                                                        {t('listed')}
-                                                    </Badge>
+                                                    <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
                                                 ) : (
-                                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                                    <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
                                                 )}
                                             </div>
                                         </CardHeader>
-                                        <CardContent>
-                                            <div className="flex flex-col gap-2">
-                                                <div className="text-sm flex justify-between items-center">
+                                        <CardContent className="p-3 pt-1">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="text-xs flex justify-between items-center">
                                                     {result.loading ? (
-                                                        <span className="text-muted-foreground">{t('checking')}</span>
+                                                        <span className="text-muted-foreground text-[10px]">{t('checking')}</span>
                                                     ) : result.error ? (
-                                                        <span className="text-destructive">{result.error}</span>
+                                                        <span className="text-destructive text-[10px]">{result.error}</span>
                                                     ) : (
-                                                        <span className={result.listed ? "text-destructive font-medium" : "text-muted-foreground"}>
+                                                        <span className={`text-[10px] font-medium ${result.listed ? "text-destructive" : "text-muted-foreground"}`}>
                                                             {result.listed ? t('listed') : t('clean')}
                                                         </span>
                                                     )}
 
                                                     {result.responseTime !== undefined && (
-                                                        <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded opacity-70">
+                                                        <span className="text-[9px] text-muted-foreground font-mono bg-muted px-1 rounded opacity-70">
                                                             {result.responseTime}ms
                                                         </span>
                                                     )}
                                                 </div>
-
-                                                {result.addresses && result.addresses.length > 0 && (
-                                                    <div className="text-xs bg-background/50 p-2 rounded border border-border/50 font-mono break-all">
-                                                        {result.addresses.join(", ")}
-                                                    </div>
-                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>

@@ -38,7 +38,7 @@ const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "", mode
 
   return (
     <form onSubmit={onSubmit} className={`w-full ${className}`}>
-      <div className="flex gap-2">
+      <div className={`flex gap-2 ${mode === "multi" ? "flex-col" : "flex-row"}`}>
         {mode === "single" ? (
           <Input
             placeholder={t('searchPlaceholder')}
@@ -51,10 +51,14 @@ const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "", mode
             placeholder="Enter multiple IPs (comma or newline separated, max 5)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 min-h-[80px]"
+            className="flex-1 min-h-[120px] resize-y"
           />
         )}
-        <Button type="submit" disabled={isLoading} className={mode === "multi" ? "h-auto" : ""}>
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className={mode === "multi" ? "self-end w-full sm:w-auto" : ""}
+        >
           {isLoading ? t('analyzing') : <><Search className="mr-2 h-4 w-4" /> {t('analyze')}</>}
         </Button>
       </div>
@@ -359,13 +363,13 @@ const Index = () => {
             </div>
 
             <div className="p-6 bg-card rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 animate-fade-in">
-              <div className="flex justify-center mb-4">
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-6">
                 <div className="bg-muted p-1 rounded-lg inline-flex">
                   <Button
                     variant={searchMode === "single" ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setSearchMode("single")}
-                    className="gap-2"
+                    className={`gap-2 rounded-md transition-all ${searchMode === "single" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <Search className="h-4 w-4" /> Single Target
                   </Button>
@@ -373,11 +377,20 @@ const Index = () => {
                     variant={searchMode === "multi" ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setSearchMode("multi")}
-                    className="gap-2"
+                    className={`gap-2 rounded-md transition-all ${searchMode === "multi" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
                     <Layers className="h-4 w-4" /> Multi-Target
                   </Button>
                 </div>
+
+                <div className="hidden sm:block w-px h-8 bg-border" />
+
+                <Link to="/dnsbl">
+                  <Button variant="outline" size="sm" className="gap-2 hover:bg-primary hover:text-primary-foreground transition-colors">
+                    <Shield className="h-4 w-4" />
+                    {t('dnsblCheck')}
+                  </Button>
+                </Link>
               </div>
 
               <SearchForm
@@ -395,13 +408,13 @@ const Index = () => {
             </div>
 
             <p className="text-sm text-muted-foreground animate-fade-in">
-              Make sure to configure your API keys in the .env file
+              Secure & Private Threat Analysis • API Keys Managed Locally
             </p>
           </div>
         </div>
 
         <Footer />
-      </div>
+      </div >
     );
   }
 

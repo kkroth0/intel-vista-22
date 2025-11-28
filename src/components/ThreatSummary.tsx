@@ -69,16 +69,6 @@ export const ThreatSummary = ({ query, overallScore, threatLevel, totalVendors, 
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{t('threatSummary')}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleCopy}>
-              <Copy className="h-4 w-4 mr-2" />
-              {t('copy')}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              {t('export')}
-            </Button>
-          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
