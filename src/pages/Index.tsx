@@ -48,7 +48,7 @@ const SearchForm = ({ query, setQuery, onSubmit, isLoading, className = "", mode
           />
         ) : (
           <Textarea
-            placeholder="Enter multiple IPs (comma or newline separated, max 5)"
+            placeholder="Enter multiple IPs (comma or newline separated, max 15)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 min-h-[120px] resize-y"
@@ -143,10 +143,10 @@ const Index = () => {
     } else {
       // Split by comma, newline, or space
       queries = rawQuery.split(/[\s,]+/).filter(q => q.length > 0);
-      if (queries.length > 10) {
+      if (queries.length > 15) {
         toast({
           title: "Too many targets",
-          description: "Please enter a maximum of 10 IPs.",
+          description: "Please enter a maximum of 15 IPs.",
           variant: "destructive",
         });
         return;
