@@ -143,10 +143,10 @@ const Index = () => {
     } else {
       // Split by comma, newline, or space
       queries = rawQuery.split(/[\s,]+/).filter(q => q.length > 0);
-      if (queries.length > 5) {
+      if (queries.length > 10) {
         toast({
           title: "Too many targets",
-          description: "Please enter a maximum of 5 IPs.",
+          description: "Please enter a maximum of 10 IPs.",
           variant: "destructive",
         });
         return;
